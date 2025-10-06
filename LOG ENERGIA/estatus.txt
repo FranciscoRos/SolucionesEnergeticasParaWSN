@@ -1,0 +1,1 @@
+Esta es una versión con logs en tarjeta sd pero que implementa la librería de eficiencia energtética

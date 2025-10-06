@@ -1,0 +1,2 @@
+Implementa la mejora de comunicación con log y la 
+libreria pero añadimos el uso de comunicarse en binario

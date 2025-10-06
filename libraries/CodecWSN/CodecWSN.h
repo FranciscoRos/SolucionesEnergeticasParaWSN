@@ -1,0 +1,209 @@
+#pragma once
+#include <Arduino.h>
+#include <stdint.h>
+
+/** Esta es una librería a medida para red de sensores con paquete de información de 8 bytes
+  *  (voltaje, corriente, voltaje batería) y framing robusto con SOF y CRC16-CCITT.
+  *  Está pensada para usarse con XBee en modo AT o cualquier otro enlace serie.
+  *  Autores: Francisco Rosales, Omar Tox, 2025-09.
+
+/* ======================== Objeto Packet: binario fijo (8 bytes) ===================== */
+struct Packet {
+  uint16_t id;
+  int16_t  voltaje;    // centésimas
+  int16_t  corriente;  // mA
+  uint16_t vbat;       // centésimas
+};
+
+constexpr size_t PACKET_SIZE = 8;
+
+/* --- Encode: struct -> bytes (big-endian) --- */
+inline void encodePacket(uint8_t *buf, const Packet &p) {
+  buf[0] = uint8_t(p.id >> 8);
+  buf[1] = uint8_t(p.id);
+  buf[2] = uint8_t(p.voltaje >> 8);
+  buf[3] = uint8_t(p.voltaje);
+  buf[4] = uint8_t(p.corriente >> 8);
+  buf[5] = uint8_t(p.corriente);
+  buf[6] = uint8_t(p.vbat >> 8);
+  buf[7] = uint8_t(p.vbat);
+}
+
+/* --- Decode rápido: asume 8 bytes disponibles --- */
+inline Packet decodePacketFast(const uint8_t *buf) {
+  Packet p;
+  p.id        = uint16_t((uint16_t(buf[0]) << 8) | buf[1]);
+  p.voltaje   = int16_t( (uint16_t(buf[2]) << 8) | buf[3] );
+  p.corriente = int16_t( (uint16_t(buf[4]) << 8) | buf[5] );
+  p.vbat      = uint16_t((uint16_t(buf[6]) << 8) | buf[7]);
+  return p;
+}
+
+/* --- Decode con verificación de longitud --- */
+inline bool decodePacketSafe(const uint8_t *buf, size_t len, Packet &out) {
+  if (!buf || len < PACKET_SIZE) return false;
+  out = decodePacketFast(buf);
+  return true;
+}
+
+/* ============================ Framing robusto ================================ */
+/* Frame en la línea de datos (stream AT):
+ *   [SOF0=0xAA][SOF1=0x55][VER][LEN=8][PAYLOAD(8)][CRC16_H][CRC16_L]
+ * CRC16-CCITT (poly 0x1021, init 0xFFFF) calculado sobre VER, LEN y PAYLOAD.
+ * Si un byte se pierde o se mete, el parser re-sincroniza buscando AA 55.
+ */
+
+namespace WSNFrame {
+  // Marcador de inicio de frame (byte 0): primer byte de la secuencia de inicio.
+  constexpr uint8_t MARCADOR_INICIO_0 = 0xAA; 
+  // Marcador de inicio de frame (byte 1): segundo byte de la secuencia de inicio.
+  constexpr uint8_t MARCADOR_INICIO_1 = 0x55; 
+  // Versión del protocolo: Permite identificar la versión del formato del frame.
+  constexpr uint8_t VERSION_PROTOCOLO  = 0x01;
+
+  constexpr size_t HEADER_SIZE  = 2 /*SOF*/ + 1 /*VER*/ + 1 /*LEN*/; // Tamaño de la cabecera del frame.
+  constexpr size_t TRAILER_SIZE = 2 /*CRC16*/; // Tamaño del trailer (CRC) del frame.
+  constexpr size_t FRAME_SIZE   = HEADER_SIZE + PACKET_SIZE + TRAILER_SIZE; // Tamaño total del frame.
+
+  /* --- CRC16-CCITT (X25) sencillo --- */
+  inline uint16_t crc16_ccitt(const uint8_t* data, size_t len, uint16_t crc = 0xFFFF) {
+    while (len--) {
+      crc ^= (uint16_t)(*data++) << 8;
+      for (uint8_t i = 0; i < 8; ++i) {
+        // Aplica el polinomio CRC16-CCITT
+        if (crc & 0x8000) crc = (crc << 1) ^ 0x1021;
+        else              crc <<= 1;
+      }
+    }
+    return crc;
+  }
+
+  /* --- Empaquetar Packet en un frame completo --- */
+  inline size_t encodeFrameFromPacket(uint8_t* out, const Packet& p) {
+    uint8_t payload[PACKET_SIZE]; 
+    encodePacket(payload, p);
+
+    out[0] = MARCADOR_INICIO_0;     // Primer byte del marcador de inicio.
+    out[1] = MARCADOR_INICIO_1;     // Segundo byte del marcador de inicio.
+    out[2] = VERSION_PROTOCOLO;     // Versión del protocolo.
+    out[3] = uint8_t(PACKET_SIZE); // Longitud del payload 
+    
+    // Copiar payload
+    for (size_t i = 0; i < PACKET_SIZE; ++i) out[4 + i] = payload[i];
+
+    // Calcular CRC sobre VER+LEN+PAYLOAD
+    uint16_t crc = crc16_ccitt(out + 2, 1 + 1 + PACKET_SIZE);
+    out[4 + PACKET_SIZE] = uint8_t(crc >> 8); // Byte alto del CRC.
+    out[5 + PACKET_SIZE] = uint8_t(crc);      // Byte bajo del CRC.
+    return FRAME_SIZE; // 14
+  }
+
+  /* --- Parser por bytes (recomendado para el coordinador) --- */
+  struct Parser {
+    enum State : uint8_t {
+      FIND_SOF0,
+      FIND_SOF1,
+      READ_VER,
+      READ_LEN,
+      READ_PAYLOAD,
+      READ_CRC_H,
+      READ_CRC_L
+    };
+
+    State st = FIND_SOF0;      // estado actual
+    uint8_t ver = 0;           // versión leída
+    uint8_t len = 0;           // longitud esperada del payload
+    uint8_t pay[PACKET_SIZE];  // buffer temporal para el payload
+    uint8_t idx = 0;           // cuántos bytes de payload llevas
+    uint16_t crc_run = 0xFFFF; // CRC incremental (se reinicia al detectar SOF completo)
+    uint8_t crc_h = 0;         // guarda el byte alto del CRC recibido
+
+
+    void reset() {
+      st = FIND_SOF0; ver = 0; len = 0; idx = 0; crc_run = 0xFFFF; crc_h = 0;
+    }
+  };
+
+  /* Alimenta un byte. Devuelve true si decodificó un Packet válido en 'out'. */
+  inline bool feed(Parser& p, uint8_t b, Packet& out) {
+    switch (p.st) {
+      case Parser::FIND_SOF0:
+        if (b == MARCADOR_INICIO_0) p.st = Parser::FIND_SOF1;
+        return false;
+
+      case Parser::FIND_SOF1:
+        if (b == MARCADOR_INICIO_1) { p.st = Parser::READ_VER; p.crc_run = 0xFFFF; }
+        else p.st = Parser::FIND_SOF0;
+        return false;
+
+      case Parser::READ_VER:
+        p.ver = b;
+        p.crc_run = crc16_ccitt(&b, 1, p.crc_run);
+        p.st = Parser::READ_LEN; 
+        return false;
+
+      case Parser::READ_LEN:
+        p.len = b;
+        p.crc_run = crc16_ccitt(&b, 1, p.crc_run);
+        if (p.len != PACKET_SIZE) { p.reset(); }
+        else { p.idx = 0; p.st = Parser::READ_PAYLOAD; }
+        return false;
+
+      case Parser::READ_PAYLOAD:
+        p.pay[p.idx++] = b;
+        p.crc_run = crc16_ccitt(&b, 1, p.crc_run);
+        if (p.idx >= p.len) p.st = Parser::READ_CRC_H;
+        return false;
+
+      case Parser::READ_CRC_H:
+        p.crc_h = b;
+        p.st = Parser::READ_CRC_L;
+        return false;
+
+      case Parser::READ_CRC_L: {
+        uint16_t crc_rx = (uint16_t(p.crc_h) << 8) | b;
+        bool ok = (crc_rx == p.crc_run);
+        if (ok) {
+          out = decodePacketFast(p.pay);
+        }
+        p.reset();
+        return ok;
+      }
+    }
+    return false;
+  }
+
+  /* --- Decoder de buffer: busca SOF en un bloque y consume lo necesario.
+     Útil si prefieres llenar un ring-buffer y llamar por tandas.            --- */
+  inline bool decodeFromBuffer(const uint8_t* in, size_t inLen, size_t& consumed, Packet& out) {
+    consumed = 0;
+    if (!in || inLen < FRAME_SIZE) return false;
+
+    // Buscar 0xAA 0x55
+    size_t i = 0;
+    while (i + FRAME_SIZE <= inLen) {
+      if (in[i] == MARCADOR_INICIO_0 && in[i+1] == MARCADOR_INICIO_1) {
+        // Ver/LEN
+        uint8_t ver = in[i+2];
+        uint8_t len = in[i+3];
+        if (len != PACKET_SIZE) { i++; continue; }
+        // CRC
+        const uint8_t* pay = in + i + 4;
+        uint16_t crc_calc = crc16_ccitt(&in[i+2], 1 + 1 + PACKET_SIZE);
+        uint16_t crc_rx   = (uint16_t(in[i+4+PACKET_SIZE]) << 8) | in[i+5+PACKET_SIZE];
+        if (crc_calc == crc_rx) {
+          out = decodePacketFast(pay);
+          consumed = (i + FRAME_SIZE);
+          return true;
+        } else {
+          // SOF válido pero frame dañado -> correr una posición
+          i++;
+          continue;
+        }
+      }
+      i++;
+    }
+    consumed = i; // bytes que ya no sirven antes del próximo posible SOF
+    return false;
+  }
+} // namespace WSNFrame

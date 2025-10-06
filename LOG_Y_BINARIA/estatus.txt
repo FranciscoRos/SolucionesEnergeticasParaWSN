@@ -1,0 +1,3 @@
+Implementa la mejora de comunicación con log y añadimos el uso de comunicarse en binario
+
+NO SIRVE VETE A LA VERGA SI LO ARREGLAS ME AVISAS

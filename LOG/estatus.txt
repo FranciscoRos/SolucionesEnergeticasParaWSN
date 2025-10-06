@@ -1,0 +1,1 @@
+En este caso tenemos la comunicación básica pero que crea archivos log en las tarjetas SD

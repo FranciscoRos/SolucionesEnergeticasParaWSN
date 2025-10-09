@@ -1,0 +1,8 @@
+# Ignorar todo dentro de la carpeta de librerías
+libraries/*
+
+# Pero, no ignorar las carpetas de librerías que terminan en "WSN"
+!libraries/*WSN/
+
+# Tampoco ignorar el contenido de esas carpetas (necesario para que Git las rastree)
+!libraries/*WSN/**

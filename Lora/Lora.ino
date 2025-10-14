@@ -1,87 +1,97 @@
 /*
  * ==========================================================
- * ==        RECEPTOR LORA BÁSICO (ESP32) - REVISADO       ==
+ * ==         SKETCH RECEPTOR UNIVERSAL (VERSIÓN FINAL)     ==
  * ==========================================================
- * Este sketch es un receptor simple. Su única función es
- * escuchar paquetes de LoRa y mostrarlos en el monitor serie
- * junto con la intensidad de la señal (RSSI).
+ * Este sketch es un receptor genérico capaz de usar diferentes
+ * módulos de radio (LoRa, XBee, etc.) cambiando una sola
+ * línea de código en la sección de selección de radio.
+ * * Utiliza un objeto de configuración que se inyecta en la
+ * clase del radio para máxima flexibilidad y limpieza del código.
  *
- * Conexiones (ESP32 - LoRa):
- * - 3.3V -> VCC
- * - GND  -> GND
- * - G23  -> MOSI
- * - G19  -> MISO
- * - G18  -> SCK
- * - G5   -> NSS/CS
- * - G14  -> RESET
- * - G2   -> DIO0
+ * Tareas que realiza:
+ * 1. Inicializa el radio seleccionado con su configuración.
+ * 2. Escucha por paquetes entrantes y los muestra en el monitor
+ * serie junto a su intensidad de señal (RSSI).
  */
+
+// --- LIBRERÍAS DE LA APLICACIÓN ---
 #include <SPI.h>
-#include <LoRa.h> // Incluye la librería LoRa directamente
 
-// Define la frecuencia de LoRa para tu región (debe coincidir con el emisor)
-const long LORA_FREQUENCY = 915E6;
+// --- LIBRERÍAS DE LOS COMPONENTES MODULARES ---
+// Estos archivos .h deben estar en la misma carpeta que este sketch
+#include "RadioInterface.h"
+#include "LoraRadio.h"
+// #include "XbeeRadio.h" // Se añadiría para soportar XBee
 
+// ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
+#define USE_LORA
+// #define USE_XBEE
+
+// ======================= OBJETOS Y VARIABLES GLOBALES =======================
+RadioInterface* radio; // Puntero genérico a la interfaz del radio.
+
+// ======================= SETUP =======================
 void setup() {
   Serial.begin(9600);
   while (!Serial);
+  Serial.println("\n--- INICIANDO RECEPTOR UNIVERSAL (VERSIÓN FINAL) ---");
 
-  Serial.println("\n--- Receptor LoRa Básico Iniciado ---");
+  // --- INYECCIÓN DE DEPENDENCIA DEL RADIO ---
+  Serial.print("Configurando radio: ");
 
-  // Configura los pines para el LoRa en el ESP32
-  LoRa.setPins(5, 14, 2); // LoRa.setPins(csPin, resetPin, irqPin);
+  #if defined(USE_LORA)
+    Serial.println("LoRa");
 
-  // Intenta inicializar el módulo LoRa
-  if (!LoRa.begin(LORA_FREQUENCY)) {
-    Serial.println("¡Error al iniciar el módulo LoRa!");
-    while (1);
+    // 1. Crear el objeto de configuración para el RECEPTOR LoRa (ESP32)
+    LoRaConfig configLora;
+    // Parámetros de comunicación (¡DEBEN COINCIDIR EXACTAMENTE CON EL EMISOR!)
+    configLora.frequency        = 915E6;
+    configLora.spreadingFactor  = 7;
+    configLora.signalBandwidth  = 125E3;
+    configLora.codingRate       = 5;
+    configLora.syncWord         = 0xF3;
+    configLora.txPower          = 20; // No se usa para recibir, pero se define por consistencia
+    // Pines específicos del ESP32
+    configLora.csPin            = 5;
+    configLora.resetPin         = 14;
+    configLora.irqPin           = 2;
+
+    // 2. Crear la instancia del radio LoRa
+    radio = new LoraRadio(configLora);
+
+  #elif defined(USE_XBEE)
+    Serial.println("XBee");
+    // Aquí iría la configuración para XBee.
+    /*
+    XBeeConfig configXBee;
+    configXBee.rxPin = 16;
+    configXBee.txPin = 17;
+    ...
+    radio = new XbeeRadio(configXBee);
+    */
+  #endif
+
+  if (!radio->iniciar()) {
+    Serial.println("¡¡¡ERROR: Fallo al iniciar el módulo de radio!!!");
+    while (true);
   }
-
-  // ====================================================================================
-  // ==         PARÁMETROS DE COMUNICACIÓN LoRa (¡DEBEN COINCIDIR CON EL EMISOR!)        ==
-  // ====================================================================================
-
-  // 1. FACTOR DE PROPAGACIÓN (Spreading Factor - SF)
-  // Rango: 6 a 12. Debe ser el mismo que en el emisor.
-  LoRa.setSpreadingFactor(7);
-
-  // 2. ANCHO DE BANDA DE LA SEÑAL (Signal Bandwidth)
-  // Valores comunes: 62.5E3, 125E3, 250E3. Debe ser el mismo que en el emisor.
-  LoRa.setSignalBandwidth(125E3);
-
-  // 3. TASA DE CODIFICACIÓN (Coding Rate)
-  // Rango: 5 a 8 (representa 4/5, 4/6, etc.). Debe ser el mismo que en el emisor.
-  LoRa.setCodingRate4(5);
-
-  // 4. PALABRA DE SINCRONIZACIÓN (Sync Word) - "CANAL PRIVADO"
-  // Un byte de 0x00 a 0xFF. Solo escuchará a los emisores con la misma palabra.
-  LoRa.setSyncWord(0xF3);
-
-  // ====================================================================================
-
-  Serial.println("Módulo LoRa inicializado y escuchando...");
+  Serial.println("Módulo de radio inicializado y escuchando.");
 }
 
+// ======================= LOOP =======================
 void loop() {
-  // Intenta parsear un paquete entrante
-  int packetSize = LoRa.parsePacket();
+  // El loop es ahora completamente genérico.
+  // Funciona igual sin importar qué radio esté definido arriba.
+  if (radio->hayDatosDisponibles()) {
 
-  if (packetSize) {
-    // Se recibió un paquete
+    String datosRecibidos = radio->leerComoString();
+    int rssi = radio->obtenerRSSI(); // Usamos la función de la interfaz
+
     Serial.print("Paquete recibido con RSSI ");
-    Serial.print(LoRa.packetRssi()); // Imprime la intensidad de la señal
+    Serial.print(rssi);
     Serial.println(" dBm:");
-
-    String datosRecibidos = "";
-    // Lee el paquete mientras haya bytes disponibles
-    while (LoRa.available()) {
-      datosRecibidos += (char)LoRa.read();
-    }
-
-    // Imprime el contenido del paquete
     Serial.print(" > Contenido: '");
     Serial.print(datosRecibidos);
     Serial.println("'");
   }
 }
-

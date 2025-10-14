@@ -1,68 +1,45 @@
 /*
  * ==========================================================
- * ==   SKETCH EMISOR UNIVERSAL (ACTIVADO PARA LORA SIN SD)  ==
+ * ==           SKETCH EMISOR UNIVERSAL (VERSIÓN FINAL)     ==
  * ==========================================================
- * Versión simplificada que elimina la funcionalidad de la
- * tarjeta SD para resolver un conflicto de pines en el bus SPI.
+ * Este sketch es un emisor genérico capaz de usar diferentes 
+ * módulos de radio (LoRa, XBee, etc.) cambiando una sola 
+ * línea de código en la sección de selección de radio.
+ * * Utiliza un objeto de configuración que se inyecta en la
+ * clase del radio para máxima flexibilidad y limpieza del código.
  *
  * Tareas que realiza:
  * 1. Lee sensores a un intervalo fijo.
- * 2. Envía los datos en formato de texto a través del radio LoRa.
- * 3. Escucha comandos ("ON"/"OFF") para controlar un relé.
+ * 2. Envía los datos a través del radio seleccionado.
+ * 3. Escucha por comandos entrantes para controlar un relé.
  */
 
 // --- LIBRERÍAS DE LA APLICACIÓN ---
-// SPI.h sigue siendo necesaria porque el módulo LoRa la utiliza.
 #include <SPI.h>
 
 // --- LIBRERÍAS DE LOS COMPONENTES MODULARES ---
+// Estos archivos .h deben estar en la misma carpeta que este sketch
 #include "RadioInterface.h"
-#include "XBeeRadio.h"
 #include "LoRaRadio.h"
+// #include "XBeeRadio.h" // Se añadiría para soportar XBee
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
+// Para cambiar de radio, comenta una línea y descomenta la otra.
 #define USE_LORA
-
-
-// ======================= 2. CONFIGURACIÓN ESPECIALIZADA POR RADIO =======================
-#ifdef USE_XBEE
-  // --- Configuración para XBee ---
-  #include <SoftwareSerial.h>
-  const int PIN_XBEE_RX = 2;
-  const int PIN_XBEE_TX = 3;
-  const int PIN_XBEE_SLEEP_RQ = 7;
-  const int PIN_XBEE_ON_SLEEP = 8;
-  SoftwareSerial radioSerial(PIN_XBEE_RX, PIN_XBEE_TX);
-
-#elif defined(USE_LORA)
-  // --- Configuración para LoRa ---
-  const long LORA_FREQUENCY = 915E6;
-  // --- Recordatorio de Pines de Conexión (Arduino Nano -> LoRa) ---
-  // D11 -> MOSI
-  // D12 -> MISO
-  // D13 -> SCK
-  // D10 -> NSS / CS (Chip Select)
-  // D9  -> RESET
-  // D2  -> DIO0
-#endif
-
+// #define USE_XBEE
 
 // ======================= CONFIGURACIÓN GENERAL DE PINES =======================
 #define RELAY_PIN 4
 #define ACS_PIN   A0
 #define ZMPT_PIN  A1
 #define VBAT_PIN  A2
-// La definición de SD_CS ha sido eliminada.
-
 
 // ======================= OBJETOS Y VARIABLES GLOBALES =======================
-RadioInterface* radio; // Puntero a la interfaz.
+RadioInterface* radio; // Puntero genérico a la interfaz del radio.
 
 unsigned long previousMillis = 0;
 const unsigned long INTERVAL_MS = 3000;
 uint32_t paquetesEnviados = 0;
-// Las variables 'logFile', 'lastFlush' y 'FLUSH_MS' han sido eliminadas.
-
 
 // ======================= SETUP =======================
 void setup() {
@@ -70,15 +47,42 @@ void setup() {
   digitalWrite(RELAY_PIN, LOW);
 
   Serial.begin(9600);
-  Serial.println("\n--- INICIANDO NODO SENSOR UNIVERSAL (VERSIÓN SIN SD) ---");
-
-  // --- El bloque de inicialización de la tarjeta SD ha sido eliminado. ---
+  while(!Serial);
+  Serial.println("\n--- INICIANDO EMISOR UNIVERSAL (VERSIÓN FINAL) ---");
 
   // --- INYECCIÓN DE DEPENDENCIA DEL RADIO ---
   Serial.print("Configurando radio: ");
-  #ifdef USE_LORA
+  
+  #if defined(USE_LORA)
     Serial.println("LoRa");
-    radio = new LoRaRadio(LORA_FREQUENCY);
+
+    // 1. Crear el objeto de configuración para el EMISOR LoRa (Arduino Nano)
+    LoRaConfig configLora;
+    configLora.frequency        = 410E6;
+    configLora.txPower          = 20;
+    configLora.spreadingFactor  = 7;
+    configLora.signalBandwidth  = 125E3;
+    configLora.codingRate       = 5;
+    configLora.syncWord         = 0xF3;
+    // Pines específicos del Arduino Nano
+    configLora.csPin            = 10;
+    configLora.resetPin         = 9;
+    configLora.irqPin           = 2;
+    
+    // 2. Crear la instancia del radio pasándole el objeto de configuración
+    radio = new LoRaRadio(configLora); 
+  
+  #elif defined(USE_XBEE)
+    Serial.println("XBee");
+    // Aquí iría la configuración para XBee.
+    // Se necesitaría una estructura XBeeConfig y la clase XBeeRadio.
+    /*
+    XBeeConfig configXBee;
+    configXBee.rxPin = 2;
+    configXBee.txPin = 3;
+    ...
+    radio = new XBeeRadio(configXBee);
+    */
   #endif
   
   if (!radio->iniciar()) {
@@ -87,7 +91,6 @@ void setup() {
   }
   Serial.println("Módulo de radio inicializado y listo.");
 }
-
 
 // ======================= LOOP =======================
 void loop() {
@@ -102,17 +105,15 @@ void loop() {
     float vbat = leerVoltajeBateria();
     paquetesEnviados++;
 
-    String loraData = "N:" + String(paquetesEnviados) +
-                      " V:" + String(voltage, 2) +
-                      " I:" + String(corriente, 2) +
-                      " B:" + String(vbat, 2);
+    String dataPayload = "N:" + String(paquetesEnviados) +
+                         " V:" + String(voltage, 2) +
+                         " I:" + String(corriente, 2) +
+                         " B:" + String(vbat, 2);
 
-    // Envía los datos por el radio
-    radio->enviar(loraData + "\n");
+    radio->enviar(dataPayload);
     
-    // Imprime los datos en el monitor serie para depuración
     Serial.print("Enviado: ");
-    Serial.println(loraData);
+    Serial.println(dataPayload);
   }
 
   // --- Tarea 2: Escuchar comandos entrantes ---
@@ -129,10 +130,7 @@ void loop() {
       digitalWrite(RELAY_PIN, LOW);
     }
   }
-
-  // --- La tarea 3 (guardar en SD) ha sido eliminada. ---
 }
-
 
 // ======================= FUNCIONES DE LECTURA DE SENSORES =======================
 float leerVoltajeZMPT() {
@@ -150,15 +148,4 @@ float leerVoltajeBateria() {
   int lectura = analogRead(VBAT_PIN);
   float vEsc = (lectura * 5.0) / 1023.0;
   return vEsc * 3.0;
-}
-
-String obtenerFechaHora() {
-  // Esta función ahora solo sería útil si quisieras enviar la hora por LoRa.
-  unsigned long segundos = millis() / 1000;
-  int hh = (segundos / 3600) % 24;
-  int mm = (segundos / 60) % 60;
-  int ss = segundos % 60;
-  char buf[20];
-  sprintf(buf, "%02d:%02d:%02d", hh, mm, ss);
-  return String(buf);
 }

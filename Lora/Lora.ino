@@ -26,11 +26,7 @@
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 #define USE_LORA
 // #define USE_XBEE
-
-// ======================= OBJETOS Y VARIABLES GLOBALES =======================
 RadioInterface* radio; // Puntero genérico a la interfaz del radio.
-
-// ======================= SETUP =======================
 void setup() {
   Serial.begin(9600);
   while (!Serial);
@@ -44,14 +40,14 @@ void setup() {
 
     // 1. Crear el objeto de configuración para el RECEPTOR LoRa (ESP32)
     LoRaConfig configLora;
-    // Parámetros de comunicación (¡DEBEN COINCIDIR EXACTAMENTE CON EL EMISOR!)
+    // Parámetros de comunicación
     configLora.frequency        = 915E6;
     configLora.spreadingFactor  = 7;
     configLora.signalBandwidth  = 125E3;
     configLora.codingRate       = 5;
     configLora.syncWord         = 0xF3;
-    configLora.txPower          = 20; // No se usa para recibir, pero se define por consistencia
-    // Pines específicos del ESP32
+    configLora.txPower          = 20; 
+    // Pines del ESP32
     configLora.csPin            = 5;
     configLora.resetPin         = 14;
     configLora.irqPin           = 2;

@@ -34,7 +34,7 @@ void setup() {
 
     // Crear el objeto de configuración para el RECEPTOR LoRa (ESP32)
     LoRaConfig configLora;
-    configLora.frequency        = 410E6; // Asegúrate que coincida con tu emisor
+    configLora.frequency        = 410E6; 
     configLora.spreadingFactor  = 7;
     configLora.signalBandwidth  = 125E3;
     configLora.codingRate       = 5;

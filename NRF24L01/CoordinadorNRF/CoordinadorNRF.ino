@@ -1,6 +1,5 @@
 #include <SPI.h>
 #include <nRF24L01.h>
-#include <RF24.h>
 
 // Configuración de los pines CE y CSN para el ESP32
 RF24 radio(4, 5); // CE, CSN

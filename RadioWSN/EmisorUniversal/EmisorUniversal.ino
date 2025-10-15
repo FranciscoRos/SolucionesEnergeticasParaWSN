@@ -19,8 +19,7 @@
 
 // --- LIBRERÍAS DE LOS COMPONENTES MODULARES ---
 // Estos archivos .h deben estar en la misma carpeta que este sketch
-#include "RadioInterface.h"
-#include "LoRaRadio.h"
+#include <UniversalRadioWSN.h>
 // #include "XBeeRadio.h" // Se añadiría para soportar XBee
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================

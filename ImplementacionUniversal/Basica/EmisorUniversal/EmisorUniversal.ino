@@ -1,20 +1,19 @@
 /*
  * ==========================================================
- * ==           SKETCH EMISOR UNIVERSAL (XBEE)             ==
+ * ==     SKETCH EMISOR UNIVERSAL (LoRa + XBee Preparado)    ==
  * ==========================================================
- * Este sketch está configurado para usar un módulo XBee
- * en un Arduino Nano a través de los pines 2 (RX) y 3 (TX).
+ * Este sketch usa LoRa por defecto, pero tiene todo el código
+ * necesario para cambiar a XBee con solo modificar una línea.
  */
 
 // --- LIBRERÍAS DE LA APLICACIÓN ---
 #include <SPI.h>
 #include <UniversalRadioWSN.h>
-#include <SoftwareSerial.h> // Se necesita para el puerto serial virtual
+#include <SoftwareSerial.h> // Se incluye para la compatibilidad con XBee
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-// Se elige XBee y se comenta LoRa
-// #define USE_LORA
-#define USE_XBEE
+//#define USE_LORA
+#define USE_XBEE // <-- Descomenta esta línea para usar XBee
 
 // ======================= CONFIGURACIÓN GENERAL DE PINES =======================
 #define RELAY_PIN 4
@@ -29,7 +28,7 @@ unsigned long previousMillis = 0;
 const unsigned long INTERVAL_MS = 3000;
 uint32_t paquetesEnviados = 0;
 
-// Objeto de puerto serial para el XBee (se declara globalmente)
+// --- Objeto de puerto serial para el XBee (listo para usarse) ---
 #if defined(USE_XBEE)
   SoftwareSerial xbeeSerial(2, 3); // RX Pin = 2, TX Pin = 3
 #endif
@@ -41,20 +40,34 @@ void setup() {
 
   Serial.begin(9600);
   while(!Serial);
-  Serial.println("\n--- INICIANDO EMISOR UNIVERSAL (XBEE) ---");
+  Serial.println("\n--- INICIANDO EMISOR UNIVERSAL ---");
 
   // --- INYECCIÓN DE DEPENDENCIA DEL RADIO ---
   Serial.print("Configurando radio: ");
   
   #if defined(USE_LORA)
-    // Este bloque se ignora
-    
+    Serial.println("LoRa");
+
+    LoRaConfig configLora;
+    configLora.frequency        = 410E6;
+    configLora.spreadingFactor  = 7;
+    configLora.signalBandwidth  = 125E3;
+    configLora.codingRate       = 5;
+    configLora.syncWord         = 0xF3;
+    configLora.txPower          = 20;
+    configLora.csPin            = 10;
+    configLora.resetPin         = 9;
+    configLora.irqPin           = 2;
+
+    radio = new LoraRadio(configLora);
+
   #elif defined(USE_XBEE)
+    // --- ESTE BLOQUE ESTÁ LISTO PERO INACTIVO ---
     Serial.println("XBee");
-    // Iniciar el puerto serial del XBee
-    xbeeSerial.begin(9600);
-    // Crear la instancia del radio pasándole el puerto serial
-    radio = new XBeeRadio(xbeeSerial, 9600, -1, -1); // -1 para pines de sleep no usados
+    xbeeSerial.begin(9600); // Inicia el puerto serial para el XBee
+    // Crea la instancia de radio para XBee
+    radio = new XBeeRadio(xbeeSerial, 9600, -1, -1);
+
   #endif
   
   if (!radio->iniciar()) {

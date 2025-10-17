@@ -1,68 +1,55 @@
 /*
  * ==========================================================
- * ==     SKETCH RECEPTOR UNIVERSAL (USANDO LIBRERÍA)      ==
+ * ==          SKETCH RECEPTOR UNIVERSAL (XBEE)            ==
  * ==========================================================
- * Este sketch ha sido modificado para usar la librería
- * UniversalRadioWSN en lugar de los archivos locales.
+ * Este sketch está configurado para usar un módulo XBee
+ * en un ESP32 a través del puerto Serial2 (RX2=16, TX2=17).
  */
 
 // --- LIBRERÍAS ---
-#include <SPI.h>
-#include <UniversalRadioWSN.h> // <-- ÚNICO CAMBIO REQUERIDO
+#include <UniversalRadioWSN.h>
 
-// ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-#define USE_LORA
+// --- SELECCIÓN DEL MÓDULO DE RADIO ---
+#define USE_XBEE
 
-// ======================= OBJETOS Y VARIABLES GLOBALES =======================
+// --- OBJETOS Y VARIABLES GLOBALES ---
 RadioInterface* radio;
 
-// ======================= SETUP =======================
+// --- SETUP ---
 void setup() {
-  Serial.begin(9600);
+  // Usar 115200 para la comunicación con la PC
+  Serial.begin(115200);
   while (!Serial);
-  Serial.println("\n--- INICIANDO RECEPTOR UNIVERSAL (v1.2 - FINAL) ---");
+  Serial.println("\n--- INICIANDO RECEPTOR UNIVERSAL (XBEE) ---");
 
-  // --- INYECCIÓN DE DEPENDENCIA DEL RADIO ---
   Serial.print("Configurando radio: ");
-
-  #if defined(USE_LORA)
-    Serial.println("LoRa");
-
-    // Crear el objeto de configuración para el RECEPTOR LoRa (ESP32)
-    LoRaConfig configLora;
-    configLora.frequency        = 410E6;
-    configLora.spreadingFactor  = 7;
-    configLora.signalBandwidth  = 125E3;
-    configLora.codingRate       = 5;
-    configLora.syncWord         = 0xF3;
-    configLora.txPower          = 20;
-    configLora.csPin            = 5;
-    configLora.resetPin         = 14;
-    configLora.irqPin           = 2;
-
-    radio = new LoraRadio(configLora);
+  #if defined(USE_XBEE)
+    Serial.println("XBee");
+    // El puerto Serial2 del ESP32 se comunica con el XBee a 9600
+    Serial2.begin(9600);
+    radio = new XBeeRadio(Serial2, 9600, -1, -1);
   #endif
 
   if (!radio->iniciar()) {
-    Serial.println("¡¡¡ERROR: Fallo al iniciar el módulo de radio!!!");
+    Serial.println("¡ERROR: Fallo al iniciar el módulo de radio!");
     while (true);
   }
   Serial.println("Módulo de radio inicializado y escuchando.");
 }
 
-// ======================= LOOP (RESTAURADO A LA VERSIÓN LIMPIA) =======================
+// --- LOOP ---
 void loop() {
   if (radio->hayDatosDisponibles()) {
-
-    // Volvemos a usar la función de conveniencia, ahora que sabemos que funciona.
     String datosRecibidos = radio->leerComoString();
-    int rssi = radio->obtenerRSSI();
+    datosRecibidos.trim();
 
-    Serial.print("Paquete recibido con RSSI ");
-    Serial.print(rssi);
-    Serial.println(" dBm:");
-    Serial.print(" > Contenido: '");
-    Serial.print(datosRecibidos);
-    Serial.println("'");
+    if (datosRecibidos.length() > 0) {
+      Serial.print("Paquete recibido:");
+      Serial.print(" > Contenido: '");
+      Serial.print(datosRecibidos);
+      Serial.println("'");
+    } else {
+      Serial.println("Paquete detectado, pero estaba vacío.");
+    }
   }
 }

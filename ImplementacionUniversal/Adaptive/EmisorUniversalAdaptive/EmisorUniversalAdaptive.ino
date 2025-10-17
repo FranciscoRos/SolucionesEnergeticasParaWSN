@@ -1,23 +1,30 @@
 /*
  * ==========================================================
- * ==      SKETCH EMISOR ADAPTATIVO (VERSIÓN FINAL)        ==
+ * ==   SKETCH EMISOR UNIVERSAL (LoRa + XBee Preparado)    ==
+ * ==   CON GESTIÓN ADAPTATIVA DE ENERGÍA                  ==
  * ==========================================================
- * Este sketch integra la librería AdaptiveTXWSN para ajustar
- * la frecuencia de envío de datos según el voltaje de la
- * batería, optimizando el consumo de energía.
+ * Este sketch usa LoRa/XBee y ajusta su frecuencia de envío
+ * automáticamente según el nivel de la batería para ahorrar
+ * energía, usando la librería AdaptiveTXWSN.
  */
 
-// --- LIBRERías DE LA APLICACIÓN ---
+// --- LIBRERÍAS DE LA APLICACIÓN ---
 #include <SPI.h>
 #include <UniversalRadioWSN.h>
-#include "AdaptiveTXWSN.h"
-// --> CORRECCIÓN 1: SoftwareSerial se incluye aquí, en el ámbito global.
 #include <SoftwareSerial.h>
+#include "AdaptiveTXWSN.h" // --> CAMBIO: Se incluye la nueva librería.
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-// --> CORRECCIÓN 2: Elige SOLO UNO. Comenta la línea que no vayas a usar.
-//#define USE_LORA
-#define USE_XBEE
+// Descomenta solo UNA de las siguientes dos líneas.
+#define USE_LORA
+//#define USE_XBEE
+
+// --- VERIFICACIÓN DE COMPILACIÓN ---
+#if defined(USE_LORA) && defined(USE_XBEE)
+  #error "Solo puedes definir USE_LORA o USE_XBEE, pero no ambos."
+#elif !defined(USE_LORA) && !defined(USE_XBEE)
+  #error "Debes definir USE_LORA o USE_XBEE para compilar."
+#endif
 
 // ======================= CONFIGURACIÓN GENERAL DE PINES =======================
 #define RELAY_PIN 4
@@ -27,12 +34,14 @@
 
 // ======================= OBJETOS Y VARIABLES GLOBALES =======================
 RadioInterface* radio;
-AdaptiveTXWSN adaptiveTimer;
-
+AdaptiveTXWSN txManager; // --> CAMBIO: Se crea el objeto para gestionar la energía.
 uint32_t paquetesEnviados = 0;
 
-// --> CORRECCIÓN 3: Se declara el objeto SoftwareSerial globalmente para que no se destruya.
-//     Solo se usará si USE_XBEE está activo.
+// --> CAMBIO: Se eliminan las variables del temporizador manual.
+// unsigned long previousMillis = 0;
+// const unsigned long INTERVAL_MS = 3000;
+
+// --- Objeto de puerto serial para el XBee (listo para usarse) ---
 #if defined(USE_XBEE)
   SoftwareSerial xbeeSerial(2, 3); // RX Pin = 2, TX Pin = 3
 #endif
@@ -44,51 +53,57 @@ void setup() {
 
   Serial.begin(9600);
   while(!Serial);
-  Serial.println("\n--- INICIANDO EMISOR ADAPTATIVO (VERSIÓN FINAL) ---");
+  Serial.println("\n--- INICIANDO EMISOR UNIVERSAL ADAPTATIVO ---");
 
-  // Configuración del temporizador adaptativo...
-  Serial.println("Configurando temporizador adaptativo...");
-  AdaptiveTXWSN::Cfg adaptiveConfig;
-  adaptiveConfig.pinAdcBateria = VBAT_PIN;
-  adaptiveConfig.voltajeReferenciaAdc = 4.78;
-  adaptiveConfig.divisorRArriba_k = 0.1;
-  adaptiveConfig.divisorRAbajo_k  = 1.0;
+  // --> CAMBIO: Se configura el gestor de energía adaptativo.
+  Serial.println("Configurando gestor de energía adaptativo...");
+  AdaptiveTXWSN::Cfg configEnergia;
+
+  // -- Configuración específica de la placa (Arduino Uno/Nano 5V) --
+  configEnergia.pinAdcBateria        = VBAT_PIN;
+  configEnergia.voltajeReferenciaAdc = 5.0f;     // Para Arduino a 5V
+  configEnergia.resolucionAdcMax     = 1023.0f;  // ADC de 10 bits
+
+  // -- Configuración del divisor de voltaje para la batería --
+  // Tu función original `leerVoltajeBateria` multiplicaba por 3.0.
+  // Esto equivale a un divisor con R_arriba=20k y R_abajo=10k.
+  // (20k + 10k) / 10k = 3.0
+  configEnergia.divisorRArriba_k = 20.0f;
+  configEnergia.divisorRAbajo_k  = 10.0f;
   
-  float umbralAlto_V     = 3.9f;
-  float umbralMedio_V    = 3.4f;
-  float corteVoltaje_V   = 2.0f;
-  float histeresis       = 0.05f;
-  uint32_t periodoAlto_ms  = 5000;
-  uint32_t periodoMedio_ms = 20000;
-  uint32_t periodoBajo_ms  = 180000;
+  // -- Umbrales y períodos (AJUSTA ESTO PARA TU BATERÍA) --
+  configEnergia.umbralAlto_V   = 4.00f;  // Umbral para considerar batería alta (LiPo)
+  configEnergia.umbralMedio_V  = 3.70f;  // Umbral para considerar batería media (LiPo)
+  configEnergia.corteVoltaje_V = 3.40f;  // Voltaje de seguridad para dejar de enviar
+  configEnergia.periodoAlto_ms = 10000;  // Enviar cada 10 segundos con batería llena
+  configEnergia.periodoMedio_ms= 30000;  // Enviar cada 30 segundos con batería media
+  configEnergia.periodoBajo_ms = 120000; // Enviar cada 2 minutos con batería baja
 
-  adaptiveTimer.begin(
-    adaptiveConfig, umbralAlto_V, umbralMedio_V, corteVoltaje_V, histeresis,
-    periodoAlto_ms, periodoMedio_ms, periodoBajo_ms
-  );
+  txManager.begin(configEnergia); // Se inicializa la librería con la configuración.
 
-  // --- INYECCIÓN DE DEPENDENCIA DEL RADIO ---
+  // --- INYECCIÓN DE DEPENDENCIA DEL RADIO (Sin cambios) ---
   Serial.print("Configurando radio: ");
   
-  // --> CORRECCIÓN 4: Se usa #elif para asegurar que solo se configure UN radio.
   #if defined(USE_LORA)
     Serial.println("LoRa");
+
     LoRaConfig configLora;
-    configLora.frequency       = 410E6;
-    configLora.txPower         = 20;
-    configLora.spreadingFactor = 7;
-    configLora.signalBandwidth = 125E3;
-    configLora.codingRate      = 5;
-    configLora.syncWord        = 0xF3;
-    configLora.csPin           = 10;
-    configLora.resetPin        = 9;
-    configLora.irqPin          = 2;
-    radio = new LoraRadio(configLora); 
-  
+    configLora.frequency        = 410E6;
+    configLora.spreadingFactor  = 7;
+    configLora.signalBandwidth  = 125E3;
+    configLora.codingRate       = 5;
+    configLora.syncWord         = 0xF3;
+    configLora.txPower          = 20;
+    configLora.csPin            = 10;
+    configLora.resetPin         = 9;
+    configLora.irqPin           = 2;
+
+    radio = new LoraRadio(configLora);
+
   #elif defined(USE_XBEE)
     Serial.println("XBee");
     xbeeSerial.begin(9600);
-    radio = new XBeeRadio(xbeeSerial, 9600, -1, -1); // -1 para pines de sleep no usados
+    radio = new XBeeRadio(xbeeSerial, 9600, -1, -1);
   #endif
   
   if (!radio->iniciar()) {
@@ -100,17 +115,13 @@ void setup() {
 
 // ======================= LOOP =======================
 void loop() {
-  Serial.println("entramos");
-  if (adaptiveTimer.tick()) {
-    if (adaptiveTimer.isCutoff()) {
-      Serial.println("VOLTAJE DE CORTE ALCANZADO. Transmisión detenida.");
-      radio->dormir();
-      while(true);
-    }
-
-    float voltage = leerVoltajeZMPT();
+  //txManager decide cuándo enviar
+  if (txManager.tick()) {
+    float voltage   = leerVoltajeZMPT();
     float corriente = leerCorrienteACS();
-    float vbat = adaptiveTimer.lastVolts(); 
+
+    // Obtenemos el voltaje de la batería usando la librería.
+    float vbat      = txManager.lastVolts();
     paquetesEnviados++;
 
     String dataPayload = "N:" + String(paquetesEnviados) +
@@ -120,11 +131,11 @@ void loop() {
 
     radio->enviar(dataPayload);
     
-    Serial.print("Enviado (Nivel Bat: " + String(adaptiveTimer.level()) + ", V: " + String(vbat, 2) + "): ");
-    Serial.print(dataPayload);
-    Serial.println(" | Próximo envío en " + String(adaptiveTimer.currentPeriod() / 1000) + "s");
+    Serial.print("Enviado (Nivel Bateria: " + String(txManager.level()) + "): ");
+    Serial.println(dataPayload);
   }
 
+  // --- Recepción de comandos (sin cambios) ---
   if (radio->hayDatosDisponibles()) {
     String comando = radio->leerComoString();
     comando.trim();
@@ -143,11 +154,11 @@ void loop() {
 // ======================= FUNCIONES DE LECTURA DE SENSORES =======================
 float leerVoltajeZMPT() {
   int lectura = analogRead(ZMPT_PIN);
-  return ((lectura * 5.0) / 1023.0) * 50.0;
+  return ((lectura * 5.0) / 1023.0) * 50.0; // Asume Arduino 5V 10-bit
 }
 
 float leerCorrienteACS() {
   int lectura = analogRead(ACS_PIN);
-  float volt = (lectura * 5.0) / 1023.0;
+  float volt = (lectura * 5.0) / 1023.0; // Asume Arduino 5V 10-bit
   return (volt - 2.5) / 0.066;
 }

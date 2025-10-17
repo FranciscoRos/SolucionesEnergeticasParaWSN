@@ -1,31 +1,20 @@
 /*
  * ==========================================================
- * ==           SKETCH EMISOR UNIVERSAL (VERSIÓN FINAL)     ==
+ * ==           SKETCH EMISOR UNIVERSAL (XBEE)             ==
  * ==========================================================
- * Este sketch es un emisor genérico capaz de usar diferentes 
- * módulos de radio (LoRa, XBee, etc.) cambiando una sola 
- * línea de código en la sección de selección de radio.
- * * Utiliza un objeto de configuración que se inyecta en la
- * clase del radio para máxima flexibilidad y limpieza del código.
- *
- * Tareas que realiza:
- * 1. Lee sensores a un intervalo fijo.
- * 2. Envía los datos a través del radio seleccionado.
- * 3. Escucha por comandos entrantes para controlar un relé.
+ * Este sketch está configurado para usar un módulo XBee
+ * en un Arduino Nano a través de los pines 2 (RX) y 3 (TX).
  */
 
 // --- LIBRERÍAS DE LA APLICACIÓN ---
 #include <SPI.h>
-
-// --- LIBRERÍAS DE LOS COMPONENTES MODULARES ---
-// Estos archivos .h deben estar en la misma carpeta que este sketch
 #include <UniversalRadioWSN.h>
-// #include "XBeeRadio.h" // Se añadiría para soportar XBee
+#include <SoftwareSerial.h> // Se necesita para el puerto serial virtual
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-// Para cambiar de radio, comenta una línea y descomenta la otra.
-#define USE_LORA
-// #define USE_XBEE
+// Se elige XBee y se comenta LoRa
+// #define USE_LORA
+#define USE_XBEE
 
 // ======================= CONFIGURACIÓN GENERAL DE PINES =======================
 #define RELAY_PIN 4
@@ -34,11 +23,16 @@
 #define VBAT_PIN  A2
 
 // ======================= OBJETOS Y VARIABLES GLOBALES =======================
-RadioInterface* radio; // Puntero genérico a la interfaz del radio.
+RadioInterface* radio;
 
 unsigned long previousMillis = 0;
 const unsigned long INTERVAL_MS = 3000;
 uint32_t paquetesEnviados = 0;
+
+// Objeto de puerto serial para el XBee (se declara globalmente)
+#if defined(USE_XBEE)
+  SoftwareSerial xbeeSerial(2, 3); // RX Pin = 2, TX Pin = 3
+#endif
 
 // ======================= SETUP =======================
 void setup() {
@@ -47,41 +41,20 @@ void setup() {
 
   Serial.begin(9600);
   while(!Serial);
-  Serial.println("\n--- INICIANDO EMISOR UNIVERSAL (VERSIÓN FINAL) ---");
+  Serial.println("\n--- INICIANDO EMISOR UNIVERSAL (XBEE) ---");
 
   // --- INYECCIÓN DE DEPENDENCIA DEL RADIO ---
   Serial.print("Configurando radio: ");
   
   #if defined(USE_LORA)
-    Serial.println("LoRa");
-
-    // 1. Crear el objeto de configuración para el EMISOR LoRa (Arduino Nano)
-    LoRaConfig configLora;
-    configLora.frequency        = 410E6;
-    configLora.txPower          = 20;
-    configLora.spreadingFactor  = 7;
-    configLora.signalBandwidth  = 125E3;
-    configLora.codingRate       = 5;
-    configLora.syncWord         = 0xF3;
-    // Pines específicos del Arduino Nano
-    configLora.csPin            = 10;
-    configLora.resetPin         = 9;
-    configLora.irqPin           = 2;
+    // Este bloque se ignora
     
-    // 2. Crear la instancia del radio pasándole el objeto de configuración
-    radio = new LoRaRadio(configLora); 
-  
   #elif defined(USE_XBEE)
     Serial.println("XBee");
-    // Aquí iría la configuración para XBee.
-    // Se necesitaría una estructura XBeeConfig y la clase XBeeRadio.
-    /*
-    XBeeConfig configXBee;
-    configXBee.rxPin = 2;
-    configXBee.txPin = 3;
-    ...
-    radio = new XBeeRadio(configXBee);
-    */
+    // Iniciar el puerto serial del XBee
+    xbeeSerial.begin(9600);
+    // Crear la instancia del radio pasándole el puerto serial
+    radio = new XBeeRadio(xbeeSerial, 9600, -1, -1); // -1 para pines de sleep no usados
   #endif
   
   if (!radio->iniciar()) {
@@ -95,7 +68,6 @@ void setup() {
 void loop() {
   unsigned long currentMillis = millis();
 
-  // --- Tarea 1: Enviar datos a un intervalo fijo ---
   if (currentMillis - previousMillis >= INTERVAL_MS) {
     previousMillis = currentMillis;
 
@@ -109,13 +81,12 @@ void loop() {
                          " I:" + String(corriente, 2) +
                          " B:" + String(vbat, 2);
 
-    radio->enviar(dataPayload);
+    radio->enviar(dataPayload + "\n");
     
     Serial.print("Enviado: ");
     Serial.println(dataPayload);
   }
 
-  // --- Tarea 2: Escuchar comandos entrantes ---
   if (radio->hayDatosDisponibles()) {
     String comando = radio->leerComoString();
     comando.trim();

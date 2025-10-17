@@ -35,18 +35,14 @@ public:
     return enviar(reinterpret_cast<const uint8_t*>(data.c_str()), data.length());
   }
 
+    // Lee los datos disponibles directamente como un String (VERSIÓN CORREGIDA)
   virtual String leerComoString() {
-    int availableBytes = hayDatosDisponibles();
-    if (availableBytes > 0) {
-      char* tempBuffer = new char[availableBytes + 1];
-      size_t bytesLeidos = leer(reinterpret_cast<uint8_t*>(tempBuffer), availableBytes);
-      tempBuffer[bytesLeidos] = '\0'; 
-      String result(tempBuffer);
-      delete[] tempBuffer;
-      return result;
-    }
-    return "";
+    uint8_t buffer[256];
+    size_t longitud = leer(buffer, 255); // Llama a la función 'leer' que implementa LoraRadio
+    buffer[longitud] = '\0'; // Asegura terminación nula
+    return String(reinterpret_cast<char*>(buffer));
   }
+
 };
 
 #endif

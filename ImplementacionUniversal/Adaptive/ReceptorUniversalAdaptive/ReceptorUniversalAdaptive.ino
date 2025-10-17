@@ -1,18 +1,14 @@
 /*
  * ==========================================================
- * ==         SKETCH RECEPTOR UNIVERSAL (VERSIÓN 1.2)       ==
+ * ==     SKETCH RECEPTOR UNIVERSAL (USANDO LIBRERÍA)      ==
  * ==========================================================
- * VERSIÓN FINAL Y LIMPIA: Se revierte el loop a su estado
- * original usando la función 'leerComoString()', ahora que
- * se ha confirmado que los archivos .h subyacentes son correctos.
+ * Este sketch ha sido modificado para usar la librería
+ * UniversalRadioWSN en lugar de los archivos locales.
  */
 
-// --- LIBRERÍAS DE LA APLICACIÓN ---
+// --- LIBRERÍAS ---
 #include <SPI.h>
-
-// --- LIBRERÍAS DE LOS COMPONENTES MODULARES ---
-#include "RadioInterface.h"
-#include "LoraRadio.h"
+#include <UniversalRadioWSN.h> // <-- ÚNICO CAMBIO REQUERIDO
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 #define USE_LORA
@@ -34,7 +30,7 @@ void setup() {
 
     // Crear el objeto de configuración para el RECEPTOR LoRa (ESP32)
     LoRaConfig configLora;
-    configLora.frequency        = 410E6; 
+    configLora.frequency        = 410E6;
     configLora.spreadingFactor  = 7;
     configLora.signalBandwidth  = 125E3;
     configLora.codingRate       = 5;
@@ -57,7 +53,7 @@ void setup() {
 // ======================= LOOP (RESTAURADO A LA VERSIÓN LIMPIA) =======================
 void loop() {
   if (radio->hayDatosDisponibles()) {
-    
+
     // Volvemos a usar la función de conveniencia, ahora que sabemos que funciona.
     String datosRecibidos = radio->leerComoString();
     int rssi = radio->obtenerRSSI();

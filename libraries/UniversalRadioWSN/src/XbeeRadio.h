@@ -1,11 +1,10 @@
 #pragma once
 #include "RadioInterface.h"
-#include <Stream.h> // Se incluye Stream, la clase base para HardwareSerial y SoftwareSerial
+#include <Stream.h>
 
 class XBeeRadio : public RadioInterface {
 private:
-  // Cambiamos a 'Stream' para aceptar tanto HardwareSerial como SoftwareSerial
-  Stream& _puertoSerial; 
+  Stream& _puertoSerial;
   long _baudios;
   int8_t _pinSleepRq;
   int8_t _pinOnSleep;
@@ -22,25 +21,19 @@ private:
   }
 
 public:
-  // El constructor ahora es más flexible: acepta cualquier objeto derivado de Stream.
-  XBeeRadio(Stream& puerto, long baudios, int8_t pinSleepRq, int8_t pinOnSleep) 
-    : _puertoSerial(puerto), 
-      _baudios(baudios), 
-      _pinSleepRq(pinSleepRq), 
+  XBeeRadio(Stream& puerto, long baudios, int8_t pinSleepRq, int8_t pinOnSleep)
+    : _puertoSerial(puerto),
+      _baudios(baudios),
+      _pinSleepRq(pinSleepRq),
       _pinOnSleep(pinOnSleep) {}
 
   bool iniciar() override {
-    // IMPORTANTE: El método begin() del puerto serial (ej. xbeeSoftwareSerial.begin(9600))
-    // debe ser llamado en el sketch principal ANTES de llamar a esta función,
-    // ya que la clase base 'Stream' no tiene un método begin().
-    // Esta función solo se encarga de los pines de control.
     pinMode(_pinSleepRq, OUTPUT);
     pinMode(_pinOnSleep, INPUT);
-    // Por defecto, al iniciar, le pedimos que esté despierto.
-    digitalWrite(_pinSleepRq, HIGH); 
+    digitalWrite(_pinSleepRq, HIGH);
     return true;
   }
-  
+
   bool dormir() override {
     digitalWrite(_pinSleepRq, LOW);
     return _esperarEstadoPin(_pinOnSleep, LOW, 200);
@@ -50,9 +43,9 @@ public:
     digitalWrite(_pinSleepRq, HIGH);
     return _esperarEstadoPin(_pinOnSleep, HIGH, 200);
   }
-  
+
   bool enviar(const uint8_t* buffer, size_t longitud) override {
-    _puertoSerial.flush(); 
+    _puertoSerial.flush();
     size_t bytesEscritos = _puertoSerial.write(buffer, longitud);
     return bytesEscritos == longitud;
   }
@@ -62,7 +55,10 @@ public:
   }
 
   size_t leer(uint8_t* buffer, size_t maxLongitud) override {
-    return _puertoSerial.readBytes(buffer, maxLongitud);
+    size_t bytesLeidos = _puertoSerial.readBytesUntil('\n', buffer, maxLongitud - 1);
+    buffer[bytesLeidos] = '\0';
+    return bytesLeidos;
   }
-};
 
+  // El método leerComoString() se ha eliminado para usar la versión de la clase base.
+};

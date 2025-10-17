@@ -55,8 +55,9 @@ void setup() {
     configLora.codingRate       = 5;
     configLora.syncWord         = 0xF3;
     configLora.txPower          = 20;
+
     configLora.csPin            = 10;
-    configLora.resetPin         = 9;
+    configLora.resetPin         = -1;
     configLora.irqPin           = 2;
 
     radio = new LoraRadio(configLora);

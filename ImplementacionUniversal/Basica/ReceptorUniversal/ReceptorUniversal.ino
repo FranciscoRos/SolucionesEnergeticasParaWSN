@@ -50,17 +50,20 @@ void setup() {
     SPI.begin(); // LoRa necesita que el bus SPI esté activo
 
     // Creamos la estructura de configuración para LoRa
+    // Creamos la estructura de configuración para LoRa
     LoRaConfig configLora;
     configLora.frequency       = 410E6;
     configLora.spreadingFactor = 7;
     configLora.signalBandwidth = 125E3;
     configLora.codingRate      = 5;
     configLora.syncWord        = 0xF3;
-    configLora.txPower         = 20; // Aunque es un receptor, es buena práctica configurarlo
-    configLora.csPin           = 10;
-    configLora.resetPin        = 9;
-    configLora.irqPin          = 2;
+    configLora.txPower         = 20; 
 
+    // --- PINES ACTUALIZADOS SEGÚN TU HARDWARE ---
+    configLora.csPin           = 5;   // Tu pin NSS va aquí
+    configLora.irqPin          = 2;   // Tu pin DIO0 va aquí
+    configLora.resetPin        = -1;   // ¡IMPORTANTE! No especificaste un pin de RESET. 
+                                      // Usualmente es el pin 9 o 4. Verifica tu cableado.
     // Creamos el objeto LoraRadio con su configuración
     radio = new LoraRadio(configLora);
   #endif

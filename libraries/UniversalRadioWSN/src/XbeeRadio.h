@@ -108,10 +108,12 @@ public:
    */
   size_t leer(uint8_t* buffer, size_t maxLongitud) override {
     if (maxLongitud == 0) return 0;
-    // readBytesUntil es ideal para protocolos basados en texto como el modo transparente de XBee.
-    size_t bytesLeidos = _puertoSerial.readBytesUntil('\n', buffer, maxLongitud - 1);
-    buffer[bytesLeidos] = '\0';
-    return bytesLeidos;
-  }
 
+    int bytesDisponibles = _puertoSerial.available();
+    if (bytesDisponibles > 0) {
+      size_t bytesALeer = min((size_t)bytesDisponibles, maxLongitud);
+      return _puertoSerial.readBytes(buffer, bytesALeer);
+    }
+    return 0;
+  }
 };

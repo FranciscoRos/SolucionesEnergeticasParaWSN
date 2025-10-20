@@ -6,15 +6,16 @@
  * de forma eficiente y robusta. Es compatible con LoRa y XBee.
  */
 
-// --- LIBRERías DE LA APLICACIÓN ---
+// --- LIBRERÍAS DE LA APLICACIÓN ---
 #include <SPI.h>
 #include <UniversalRadioWSN.h>
 #include <SoftwareSerial.h> // Se incluye para la compatibilidad con XBee
 #include <CodecWSN.h>       // <-- ¡LIBRERÍA PARA CODIFICACIÓN BINARIA!
+#include <EEPROM.h>         // <-- AÑADIDO: Librería para memoria no volátil
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-//#define USE_LORA
-#define USE_XBEE // <-- Descomenta esta línea para usar XBee
+#define USE_LORA
+//#define USE_XBEE // <-- Descomenta esta línea para usar XBee
 
 // ======================= CONFIGURACIÓN GENERAL DE PINES =======================
 #define RELAY_PIN 4
@@ -26,7 +27,8 @@
 RadioInterface* radio;
 unsigned long previousMillis = 0;
 const unsigned long INTERVAL_MS = 3000;
-uint32_t paquetesEnviados = 0;
+uint32_t paquetesEnviados; // <-- AÑADIDO: Se inicializa desde la EEPROM en setup()
+
 // --- Objeto de puerto serial para el XBee (listo para usarse) ---
 #if defined(USE_XBEE)
   SoftwareSerial xbeeSerial(2, 3); // RX Pin = 2, TX Pin = 3
@@ -58,7 +60,6 @@ void setup() {
     configLora.irqPin           = 2;
 
     radio = new LoraRadio(configLora);
-
   #elif defined(USE_XBEE)
     Serial.println("XBee");
     xbeeSerial.begin(9600); // Inicia el puerto serial para el XBee
@@ -70,6 +71,11 @@ void setup() {
     while (true);
   }
   Serial.println("Módulo de radio inicializado y listo.");
+
+  // --- LECTURA INICIAL DE LA EEPROM ---
+  EEPROM.get(0, paquetesEnviados); // <-- AÑADIDO: Lee el valor guardado
+  Serial.print("Contador recuperado de EEPROM: ");
+  Serial.println(paquetesEnviados);
 }
 
 // ======================= LOOP =======================
@@ -78,7 +84,6 @@ void loop() {
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= INTERVAL_MS) {
     previousMillis = currentMillis;
-
     // 1. Leer los sensores (sin cambios)
     float voltage = leerVoltajeZMPT();
     float corriente = leerCorrienteACS();
@@ -90,17 +95,18 @@ void loop() {
     miPaquete.id = paquetesEnviados;
     miPaquete.voltaje = (int16_t)(voltage * 100);       // Guarda 120.55V como 12055
     miPaquete.corriente = (int16_t)(corriente * 1000);  // Guarda 1.25A como 1250 (mA)
-    miPaquete.vbat = (uint16_t)(vbat * 100);          // Guarda 4.15V como 415
+    miPaquete.vbat = (uint16_t)(vbat * 100);            // Guarda 4.15V como 415
 
     // 3. Crear un buffer para el frame final (14 bytes)
     uint8_t frameBuffer[WSNFrame::FRAME_SIZE];
-
     // 4. Codificar el paquete en el frame (con SOF, LEN, CRC, etc.)
     WSNFrame::encodeFrameFromPacket(frameBuffer, miPaquete);
-
     // 5. Enviar el frame binario
     radio->enviar(frameBuffer, WSNFrame::FRAME_SIZE);
     
+    // --- GUARDADO EN EEPROM ---
+    EEPROM.put(0, paquetesEnviados); // <-- AÑADIDO: Guarda el nuevo valor del contador
+
     // --- IMPRESIÓN MODIFICADA ---
     Serial.print("Enviando -> ");
     Serial.print("ID: "); Serial.print(miPaquete.id);

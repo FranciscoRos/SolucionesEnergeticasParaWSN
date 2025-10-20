@@ -4,16 +4,20 @@
  * ==========================================================
  * Este sketch usa LoRa por defecto, pero tiene todo el código
  * necesario para cambiar a XBee con solo modificar una línea.
+ *
+ * MODIFICACIÓN: Guarda el contador de paquetes en la EEPROM.
+ * VERSIÓN: Corregida para Arduino Nano.
  */
 
 // --- LIBRERÍAS DE LA APLICACIÓN ---
 #include <SPI.h>
 #include <UniversalRadioWSN.h>
 #include <SoftwareSerial.h> // Se incluye para la compatibilidad con XBee
+#include <EEPROM.h>         // Librería para la memoria no volátil
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-//#define USE_LORA
-#define USE_XBEE // <-- Descomenta esta línea para usar XBee
+#define USE_LORA
+//#define USE_XBEE // <-- Descomenta esta línea para usar XBee
 
 // ======================= CONFIGURACIÓN GENERAL DE PINES =======================
 #define RELAY_PIN 4
@@ -26,7 +30,7 @@ RadioInterface* radio;
 
 unsigned long previousMillis = 0;
 const unsigned long INTERVAL_MS = 3000;
-uint32_t paquetesEnviados = 0;
+uint32_t paquetesEnviados; // Se inicializa desde la EEPROM en setup()
 
 // --- Objeto de puerto serial para el XBee (listo para usarse) ---
 #if defined(USE_XBEE)
@@ -76,6 +80,12 @@ void setup() {
     while (true);
   }
   Serial.println("Módulo de radio inicializado y listo.");
+
+  // --- LECTURA INICIAL DE LA EEPROM ---
+  // EEPROM.begin(...); // <-- ELIMINADO: No es necesario para Arduino Nano
+  EEPROM.get(0, paquetesEnviados);              // Lee el valor guardado en la dirección 0
+  Serial.print("Contador recuperado de EEPROM: ");
+  Serial.println(paquetesEnviados);
 }
 
 // ======================= LOOP =======================
@@ -99,6 +109,10 @@ void loop() {
     
     Serial.print("Enviado: ");
     Serial.println(dataPayload);
+
+    // --- GUARDADO EN EEPROM ---
+    EEPROM.put(0, paquetesEnviados); // Guarda el nuevo valor del contador
+    // EEPROM.commit(); // <-- ELIMINADO: No es necesario para Arduino Nano
   }
 
   if (radio->hayDatosDisponibles()) {

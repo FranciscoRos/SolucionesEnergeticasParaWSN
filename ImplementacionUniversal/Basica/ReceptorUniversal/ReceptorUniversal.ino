@@ -1,21 +1,24 @@
 /**
  * ======================================================================
- * ==        SKETCH RECEPTOR UNIVERSAL (XBee + LoRa Preparado)         ==
+ * ==      SKETCH RECEPTOR UNIVERSAL (XBee + LoRa Preparado)         ==
  * ======================================================================
  * Este sketch es la versión básica de un receptor, compatible tanto con
  * XBee como con LoRa, gracias a la librería UniversalRadioWSN.
  *
  * Para cambiar de módulo, solo comenta una línea y descomenta la otra
  * en la sección "SELECCIÓN DEL MÓDULO DE RADIO".
+ *
+ * MODIFICACIÓN: Guarda el contador de paquetes recibidos en la EEPROM.
  */
 
 // --- 1. LIBRERÍAS ---
-#include <SPI.h> // Incluimos SPI porque es necesario para LoRa
+#include <SPI.h>              // Incluimos SPI porque es necesario para LoRa
 #include "UniversalRadioWSN.h" // Nuestra librería principal
+#include <EEPROM.h>           // <-- AÑADIDO: Librería para la memoria no volátil
 
 // --- 2. SELECCIÓN DEL MÓDULO DE RADIO ---
-#define USE_XBEE // <-- MODO ACTUAL
-//#define USE_LORA // <-- Descomenta esta línea para usar LoRa
+//#define USE_XBEE // <-- MODO ACTUAL
+#define USE_LORA // <-- Descomenta esta línea para usar LoRa
 
 // --- 3. CONFIGURACIÓN DE PINES ---
 // Pines para XBee (usando Serial2 en ESP32)
@@ -23,7 +26,8 @@
 #define TXD2 17
 
 // --- 4. OBJETOS GLOBALES ---
-RadioInterface* radio; // Puntero a la interfaz. No le importa si es XBee o LoRa.
+RadioInterface* radio;   // Puntero a la interfaz. No le importa si es XBee o LoRa.
+uint32_t mensajesRecibidos; // <-- AÑADIDO: Contador de mensajes recibidos
 
 // ======================= SETUP =======================
 void setup() {
@@ -50,7 +54,6 @@ void setup() {
     SPI.begin(); // LoRa necesita que el bus SPI esté activo
 
     // Creamos la estructura de configuración para LoRa
-    // Creamos la estructura de configuración para LoRa
     LoRaConfig configLora;
     configLora.frequency       = 410E6;
     configLora.spreadingFactor = 7;
@@ -62,7 +65,7 @@ void setup() {
     // --- PINES ACTUALIZADOS SEGÚN TU HARDWARE ---
     configLora.csPin           = 5;   // Tu pin NSS va aquí
     configLora.irqPin          = 2;   // Tu pin DIO0 va aquí
-    configLora.resetPin        = -1;   // ¡IMPORTANTE! No especificaste un pin de RESET. 
+    configLora.resetPin        = -1;  // ¡IMPORTANTE! No especificaste un pin de RESET. 
                                       // Usualmente es el pin 9 o 4. Verifica tu cableado.
     // Creamos el objeto LoraRadio con su configuración
     radio = new LoraRadio(configLora);
@@ -76,6 +79,12 @@ void setup() {
   }
   
   Serial.println("Módulo de radio inicializado. Esperando datos...");
+
+  // --- LECTURA INICIAL DE LA EEPROM ---
+  EEPROM.begin(sizeof(mensajesRecibidos)); // <-- AÑADIDO: Prepara la EEPROM
+  EEPROM.get(0, mensajesRecibidos);        // <-- AÑADIDO: Lee el contador desde la dirección 0
+  Serial.print("Contador de mensajes recibidos recuperado de EEPROM: ");
+  Serial.println(mensajesRecibidos);
 }
 
 // ======================= LOOP =======================
@@ -88,8 +97,14 @@ void loop() {
     datosRecibidos.trim();
 
     if (datosRecibidos.length() > 0) {
-      Serial.print("Línea recibida: --> ");
+      mensajesRecibidos++; // <-- AÑADIDO: Incrementa el contador
+
+      Serial.print("Línea recibida #" + String(mensajesRecibidos) + ": --> "); // <-- MODIFICADO para mostrar el contador
       Serial.println(datosRecibidos);
+
+      // --- GUARDADO EN EEPROM ---
+      EEPROM.put(0, mensajesRecibidos); // <-- AÑADIDO: Guarda el nuevo valor
+      EEPROM.commit();                  // <-- AÑADIDO: Asegura la escritura
 
       // Usamos la interfaz para enviar una respuesta
       radio->enviar("ON\n");

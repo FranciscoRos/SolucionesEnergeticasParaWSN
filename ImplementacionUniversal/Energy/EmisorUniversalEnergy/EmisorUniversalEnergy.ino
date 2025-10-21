@@ -10,7 +10,6 @@
 #include <SPI.h>
 #include <UniversalRadioWSN.h>
 #include <SoftwareSerial.h> // Se necesita para el puerto serial virtual
-
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 // Se elige XBee y se comenta LoRa
 // #define USE_LORA

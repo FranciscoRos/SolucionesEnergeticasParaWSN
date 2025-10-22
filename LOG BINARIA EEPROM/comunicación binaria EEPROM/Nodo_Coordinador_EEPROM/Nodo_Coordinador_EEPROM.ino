@@ -33,7 +33,7 @@ void setup() {
   Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
 
   EEPROM.begin(EEPROM_SIZE);
-  EEPROM.get(0, paquetesRecibidos);
+  EEPROM.get(3, paquetesRecibidos);
 
   Serial.println("\n--- NODO RECEPTOR INICIADO ---");
   Serial.print("Total de paquetes recibidos previamente: ");
@@ -50,7 +50,7 @@ size_t bytesRead = 0;
 
 void processPacket() {
     paquetesRecibidos++;
-    EEPROM.put(0, paquetesRecibidos);
+    EEPROM.get(3,, paquetesRecibidos);
     EEPROM.commit(); // Guarda el contador en el ESP32
 
     Packet p = decodePacket(packetBuffer);

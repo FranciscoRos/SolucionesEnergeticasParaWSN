@@ -39,7 +39,7 @@ void setup() {
 
   // 1. Leer el último ID guardado en la EEPROM
   // La dirección 0 es donde guardaremos nuestro contador.
-  EEPROM.get(0, messageCounter);
+  EEPROM.get(3, messageCounter);
   messageCounter++; // Incrementamos para empezar con el siguiente ID
   
   Serial.print("ID de mensaje inicial: ");
@@ -72,7 +72,7 @@ void loop() {
     sendData();
 
     // 3. Guardar el ID actual en la EEPROM para el próximo reinicio
-    EEPROM.put(0, messageCounter);
+    EEPROM.get(3,, messageCounter);
     
     // 4. Incrementar el contador para el siguiente mensaje
     messageCounter++;

@@ -50,7 +50,7 @@ void setup() {
   // rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 
   // Lee el último contador guardado desde la EEPROM
-  EEPROM.get(0, paquetesEnviados); 
+  EEPROM.get(3, paquetesEnviados); 
   
   Serial.println("\n--- NODO EMISOR INICIADO ---");
   Serial.print("Continuando desde el ID de paquete: ");
@@ -81,7 +81,7 @@ void loop() {
     p.timestamp = nowRTC.unixtime();
 
     // Guarda el nuevo contador en la EEPROM
-    EEPROM.put(0, paquetesEnviados);
+    EEPROM.get(3,, paquetesEnviados);
 
     // Muestra los datos en la tabla del Monitor Serie
     char serialBuffer[100], voltage_s[8], corriente_s[10], vbat_s[8];

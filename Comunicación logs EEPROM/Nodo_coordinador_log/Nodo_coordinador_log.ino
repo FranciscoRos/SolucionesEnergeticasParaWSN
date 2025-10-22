@@ -43,7 +43,7 @@ void setup() {
 
   EEPROM.begin(EEPROM_SIZE);
   // Lee el contador desde la dirección 0
-  EEPROM.get(0, paquetesRecibidos);
+  EEPROM.get(3, paquetesRecibidos);
   // Lee la estructura del último paquete desde la dirección 4
   EEPROM.get(4, lastPacket);
 
@@ -91,7 +91,7 @@ void loop() {
       
       // Guarda el contador de paquetes en la dirección 0
       paquetesRecibidos++;
-      EEPROM.put(0, paquetesRecibidos);
+      EEPROM.get(3,, paquetesRecibidos);
 
       // Llena la estructura con los nuevos datos
       lastPacket.id = id;

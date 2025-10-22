@@ -1,6 +1,6 @@
 /*
  * =======================================================================
- * ==     SKETCH EMISOR UNIVERSAL (MODO BINARIO con CodecWSN)           ==
+ * ==      SKETCH EMISOR UNIVERSAL (MODO BINARIO con CodecWSN)          ==
  * =======================================================================
  * Este sketch usa la librería CodecWSN para enviar datos de sensores
  * de forma eficiente y robusta. Es compatible con LoRa y XBee.
@@ -9,13 +9,13 @@
 // --- LIBRERÍAS DE LA APLICACIÓN ---
 #include <SPI.h>
 #include <UniversalRadioWSN.h>
-#include <SoftwareSerial.h> // Se incluye para la compatibilidad con XBee
-#include <CodecWSN.h>       // <-- ¡LIBRERÍA PARA CODIFICACIÓN BINARIA!
-#include <EEPROM.h>         // <-- AÑADIDO: Librería para memoria no volátil
+#include <SoftwareSerial.h> // Para compatibilidad con XBee
+#include <CodecWSN.h>       // Librería para codificación binaria
+#include <EEPROM.h>         // Librería para memoria no volátil
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 //define USE_LORA
-#define USE_XBEE // <-- Descomenta esta línea para usar XBee
+#define USE_XBEE 
 //#define USE_NRF
 
 // ======================= CONFIGURACIÓN GENERAL DE PINES =======================
@@ -28,18 +28,17 @@
 RadioInterface* radio;
 unsigned long previousMillis = 0;
 const unsigned long INTERVAL_MS = 3000;
-uint32_t paquetesEnviados; // <-- AÑADIDO: Se inicializa desde la EEPROM en setup()
+uint32_t paquetesEnviados;
 
-// --- Objeto de puerto serial para el XBee (listo para usarse) ---
+// --- Configuración específica por radio ---
 #if defined(USE_XBEE)
   SoftwareSerial xbeeSerial(2, 3); // RX Pin = 2, TX Pin = 3
 #elif defined(USE_NRF)
-  // Direcciones para NRF24L01 (basadas en tus .ino)
-  const byte nrfWriteAddress[6] = "00001";
-// Dirección del receptor/coordinador
-  const byte nrfReadAddress[6] = "00002";
-// Dirección ÚNICA para este emisor (para recibir "ON"/"OFF")
+  // Direcciones para NRF24L01
+  const byte nrfWriteAddress[6] = "00001"; // Dirección del receptor
+  const byte nrfReadAddress[6] = "00002";  // Dirección de este emisor
 #endif
+
 // ======================= SETUP =======================
 void setup() {
   pinMode(RELAY_PIN, OUTPUT);
@@ -49,41 +48,41 @@ void setup() {
   while(!Serial);
   Serial.println("\n--- INICIANDO EMISOR UNIVERSAL (MODO BINARIO) ---");
 
-  // --- INYECCIÓN DE DEPENDENCIA DEL RADIO ---
+  // --- INICIALIZACIÓN DEL MÓDULO DE RADIO ---
   Serial.print("Configurando radio: ");
   #if defined(USE_LORA)
     Serial.println("LoRa");
 
     LoRaConfig configLora;
-    configLora.frequency        = 410E6;
-    configLora.spreadingFactor  = 7;
-    configLora.signalBandwidth  = 125E3;
-    configLora.codingRate       = 5;
-    configLora.syncWord         = 0xF3;
-    configLora.txPower          = 20;
-    configLora.csPin            = 10;
-    configLora.resetPin         = -1;
-    configLora.irqPin           = 2;
+    configLora.frequency       = 410E6;
+    configLora.spreadingFactor = 7;
+    configLora.signalBandwidth = 125E3;
+    configLora.codingRate      = 5;
+    configLora.syncWord        = 0xF3;
+    configLora.txPower         = 20;
+    configLora.csPin           = 10;
+    configLora.resetPin        = -1;
+    configLora.irqPin          = 2;
 
     radio = new LoraRadio(configLora);
+    
   #elif defined(USE_XBEE)
     Serial.println("XBee");
-    xbeeSerial.begin(9600); // Inicia el puerto serial para el XBee
+    xbeeSerial.begin(9600);
     radio = new XBeeRadio(xbeeSerial, 9600, -1, -1);
-    #elif defined(USE_NRF)
+    
+  #elif defined(USE_NRF)
     Serial.println("NRF24L01");
     
     NrfConfig configNrf;
-    // Pines para Arduino Nano/Uno (basado en NodoSensorPowerDown.ino)
     configNrf.cePin = 9;  
     configNrf.csnPin = 10; 
     configNrf.writeAddress = nrfWriteAddress;
     configNrf.readAddress = nrfReadAddress;
-    configNrf.channel = 108;           
+    configNrf.channel = 108;       
     
-    // --- VALORES GENÉRICOS ---
     configNrf.dataRate = 250; // 250KBPS
-    configNrf.paLevel = 0;    // 0 = RF24_PA_MIN
+    configNrf.paLevel = 0;    // Potencia mínima
     
     radio = new NrfRadio(configNrf);
   #endif
@@ -95,7 +94,7 @@ void setup() {
   Serial.println("Módulo de radio inicializado y listo.");
 
   // --- LECTURA INICIAL DE LA EEPROM ---
-  EEPROM.get(1, paquetesEnviados); // <-- AÑADIDO: Lee el valor guardado
+  EEPROM.get(3, paquetesEnviados);
   Serial.print("Contador recuperado de EEPROM: ");
   Serial.println(paquetesEnviados);
 }
@@ -106,7 +105,8 @@ void loop() {
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= INTERVAL_MS) {
     previousMillis = currentMillis;
-    // 1. Leer los sensores (sin cambios)
+
+    // 1. Leer los sensores
     float voltage = leerVoltajeZMPT();
     float corriente = leerCorrienteACS();
     float vbat = leerVoltajeBateria();
@@ -115,21 +115,19 @@ void loop() {
     // 2. Crear un paquete de datos binario
     Packet miPaquete;
     miPaquete.id = paquetesEnviados;
-    miPaquete.voltaje = (int16_t)(voltage * 100);       // Guarda 120.55V como 12055
-    miPaquete.corriente = (int16_t)(corriente * 1000);  // Guarda 1.25A como 1250 (mA)
-    miPaquete.vbat = (uint16_t)(vbat * 100);            // Guarda 4.15V como 415
+    miPaquete.voltaje = (int16_t)(voltage * 100);     // Guarda 120.55V como 12055
+    miPaquete.corriente = (int16_t)(corriente * 1000); // Guarda 1.25A como 1250 (mA)
+    miPaquete.vbat = (uint16_t)(vbat * 100);       // Guarda 4.15V como 415
 
-    // 3. Crear un buffer para el frame final (14 bytes)
+    // 3. Codificar y enviar el frame binario
     uint8_t frameBuffer[WSNFrame::FRAME_SIZE];
-    // 4. Codificar el paquete en el frame (con SOF, LEN, CRC, etc.)
     WSNFrame::encodeFrameFromPacket(frameBuffer, miPaquete);
-    // 5. Enviar el frame binario
     radio->enviar(frameBuffer, WSNFrame::FRAME_SIZE);
     
     // --- GUARDADO EN EEPROM ---
-    EEPROM.put(1, paquetesEnviados); // <-- AÑADIDO: Guarda el nuevo valor del contador
+    EEPROM.get(3,, paquetesEnviados);
 
-    // --- IMPRESIÓN MODIFICADA ---
+    // --- IMPRESIÓN EN MONITOR SERIAL ---
     Serial.print("Enviando -> ");
     Serial.print("ID: "); Serial.print(miPaquete.id);
     Serial.print(" V: "); Serial.print(voltage, 2);
@@ -137,7 +135,7 @@ void loop() {
     Serial.print(" VBat: "); Serial.println(vbat, 2);
   }
 
-  // --- Recepción de comandos (sin cambios) ---
+  // --- Recepción de comandos ---
   if (radio->hayDatosDisponibles()) {
     String comando = radio->leerComoString();
     comando.trim();

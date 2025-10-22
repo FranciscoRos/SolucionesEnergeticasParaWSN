@@ -19,7 +19,7 @@ void setup() {
   EEPROM.begin(EEPROM_SIZE);
   
   // Leer el último ID guardado
-  EEPROM.get(0, lastReceivedID);
+  EEPROM.get(3, lastReceivedID);
   
   Serial.print("Ultimo ID recibido antes de este reinicio: ");
   Serial.println(lastReceivedID);
@@ -35,7 +35,7 @@ void loop() {
 
       if (receivedPayload.messageID > lastReceivedID) {
         lastReceivedID = receivedPayload.messageID;
-        EEPROM.put(0, lastReceivedID);
+        EEPROM.get(3,, lastReceivedID);
         EEPROM.commit();
       }
 

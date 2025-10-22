@@ -1,4 +1,4 @@
-/**
+/*
  * ======================================================================
  * ==      SKETCH RECEPTOR UNIVERSAL (MODO BINARIO con CodecWSN)       ==
  * ======================================================================
@@ -6,39 +6,35 @@
  * robustos recibidos por LoRa o XBee.
  */
 
-// --- 1. LIBRERÍAS ---
+// --- LIBRERÍAS ---
 #include <SPI.h>
 #include "UniversalRadioWSN.h"
-#include <CodecWSN.h> // <-- ¡LIBRERÍA PARA DECODIFICACIÓN BINARIA!
-#include <EEPROM.h>   // <-- AÑADIDO: Librería para memoria no volátil
+#include <CodecWSN.h> // Librería para decodificación binaria
+#include <EEPROM.h>   // Librería para memoria no volátil
 
-// --- 2. SELECCIÓN DEL MÓDULO DE RADIO ---
-#define USE_XBEE // <-- MODO ACTUAL
-//#define USE_LORA // <-- Descomenta esta línea para usar LoRa
+// ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
+#define USE_XBEE 
+//#define USE_LORA 
 //#define USE_NRF
 
-// --- 3. CONFIGURACIÓN DE PINES ---
+// ======================= CONFIGURACIÓN Y VARIABLES GLOBALES =======================
 // Pines para XBee (usando Serial2 en ESP32)
 #define RXD2 16
 #define TXD2 17
 
-#if defined(USE_NRF)
-  // Direcciones para NRF24L01 (basadas en tus .ino)
-  const byte nrfReadAddress[6] = "00001";
-// Dirección principal para RECIBIR datos [cite: 2, 8, 24]
-  const byte nrfWriteAddress[6] = "00002";
-// Dirección para ENVIAR respuestas (al Emisor 1)
-#endif
-
-
-// --- 4. OBJETOS GLOBALES ---
 RadioInterface* radio;     // Puntero a la interfaz.
-WSNFrame::Parser miParser; // <-- ¡NUEVO! Objeto para decodificar frames.
-uint32_t mensajesRecibidos; // <-- AÑADIDO: Contador de mensajes
+WSNFrame::Parser miParser; // Objeto para decodificar frames.
+uint32_t mensajesRecibidos;
+
+// --- Configuración específica por radio ---
+#if defined(USE_NRF)
+  // Direcciones para NRF24L01
+  const byte nrfReadAddress[6] = "00001"; // Dirección de lectura
+  const byte nrfWriteAddress[6] = "00002"; // Dirección de escritura (respuesta)
+#endif
 
 // ======================= SETUP =======================
 void setup() {
-  // Inicia la comunicación con la computadora
   Serial.begin(115200);
   while (!Serial);
   Serial.println("\n--- RECEPTOR UNIVERSAL INICIADO (MODO BINARIO) ---");
@@ -68,15 +64,12 @@ void setup() {
     Serial.println("NRF24L01");
     
     NrfConfig configNrf;
-    // Pines para ESP32 (basado en CoordinadorNRF.ino)
     configNrf.cePin = 4; 
     configNrf.csnPin = 5;
     configNrf.writeAddress = nrfWriteAddress; // Para responder "ON"
-    configNrf.readAddress = nrfReadAddress;
-// Para recibir datos
-    configNrf.channel = 108;           
+    configNrf.readAddress = nrfReadAddress;   // Para recibir datos
+    configNrf.channel = 108;       
     
-    // --- VALORES GENÉRICOS ---
     configNrf.dataRate = 250; // 250KBPS
     configNrf.paLevel = 0;    // 0 = RF24_PA_MIN
     
@@ -84,45 +77,43 @@ void setup() {
     
   #endif
   
-  // Llama al método 'iniciar()' del objeto que se haya creado.
   if (!radio->iniciar()) {
     Serial.println("¡ERROR! Fallo al iniciar el módulo de radio.");
-    while (true); // Detiene la ejecución
+    while (true);
   }
   
   miParser.reset(); // Resetea el parser al inicio
   Serial.println("Módulo de radio inicializado. Esperando datos binarios...");
   
   // --- LECTURA INICIAL DE LA EEPROM ---
-  EEPROM.begin(sizeof(mensajesRecibidos)); // <-- AÑADIDO: Prepara la EEPROM
-  EEPROM.get(1, mensajesRecibidos);        // <-- AÑADIDO: Lee el contador
+  EEPROM.begin(sizeof(mensajesRecibidos));
+  EEPROM.get(3, mensajesRecibidos);
   Serial.print("Contador de mensajes recuperado de EEPROM: ");
   Serial.println(mensajesRecibidos);
 }
 
 // ======================= LOOP =======================
 void loop() {
-  // Comprueba si la radio ha recibido CUALQUIER dato binario
   if (radio->hayDatosDisponibles()) {
     
-    // 1. Crear un buffer para leer los bytes crudos
+    // 1. Leer los bytes crudos de la radio
     uint8_t bufferRecepcion[64];
-    // 2. Leer los bytes crudos de la radio
     size_t bytesLeidos = radio->leer(bufferRecepcion, 64);
-    // 3. Alimentar cada byte, uno por uno, al parser
+
+    // 2. Alimentar cada byte, uno por uno, al parser
     for (size_t i = 0; i < bytesLeidos; i++) {
       Packet paqueteRecibido;
-      // La función 'feed' devuelve 'true' solo cuando ha recibido
-      // un frame completo y su CRC es correcto.
+      
+      // feed() devuelve true solo cuando ha recibido un frame completo y válido
       if (WSNFrame::feed(miParser, bufferRecepcion[i], paqueteRecibido)) {
         
-        mensajesRecibidos++; // <-- AÑADIDO: Incrementa el contador
+        mensajesRecibidos++;
 
         // --- GUARDADO EN EEPROM ---
-        EEPROM.put(1, mensajesRecibidos); // <-- AÑADIDO: Guarda el nuevo valor
-        EEPROM.commit();                  // <-- AÑADIDO: Asegura la escritura en ESP32
+        EEPROM.get(3,, mensajesRecibidos);
+        EEPROM.commit(); // Asegura la escritura en ESP32
 
-        // --- IMPRESIÓN MODIFICADA ---
+        // --- IMPRESIÓN EN MONITOR SERIAL ---
         Serial.print("Mensaje #" + String(mensajesRecibidos) + " Recibido -> ");
         Serial.print("ID: "); Serial.print(paqueteRecibido.id);
         Serial.print(" V: "); Serial.print(paqueteRecibido.voltaje / 100.0, 2);

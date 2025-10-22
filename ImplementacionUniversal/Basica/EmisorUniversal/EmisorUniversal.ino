@@ -5,17 +5,13 @@
  * Este sketch usa la interfaz "RadioInterface" para abstraer
  * el hardware de radio.
  *
- * MODIFICACIÓN: Guarda el contador de paquetes en la EEPROM.
- * VERSIÓN: Corregida para Arduino Nano.
- * NUEVO: Añadido soporte para NRF24L01.
  */
 
 // --- LIBRERÍAS DE LA APLICACIÓN ---
 #include <SPI.h>
 #include <UniversalRadioWSN.h>  // Contiene LoraRadio.h, XbeeRadio.h y NrfRadio.h
-#include <SoftwareSerial.h> // Se incluye para la compatibilidad con XBee
+#include <SoftwareSerial.h> 
 #include <EEPROM.h>         // Librería para la memoria no volátil
-// #include <RF24.h>        // <-- ELIMINADO: Ya no es necesario aquí
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 #define USE_LORA
@@ -35,18 +31,16 @@ RadioInterface* radio;
 unsigned long previousMillis = 0;
 const unsigned long INTERVAL_MS = 3000;
 uint32_t paquetesEnviados;
-// Se inicializa desde la EEPROM en setup()
 
 // --- Configuración específica por radio ---
 #if defined(USE_XBEE)
   SoftwareSerial xbeeSerial(2, 3);
-// RX Pin = 2, TX Pin = 3
+
 #elif defined(USE_NRF)
-  // Direcciones para NRF24L01 (basadas en tus .ino)
+  // Direcciones para NRF24L01 
   const byte nrfWriteAddress[6] = "00001";
-// Dirección del receptor/coordinador
+// Dirección del coordinador
   const byte nrfReadAddress[6] = "00002";
-// Dirección ÚNICA para este emisor (para recibir "ON"/"OFF")
 #endif
 
 // ======================= SETUP =======================
@@ -58,7 +52,6 @@ void setup() {
   while(!Serial);
   Serial.println("\n--- INICIANDO EMISOR UNIVERSAL ---");
 
-  // --- INYECCIÓN DE DEPENDENCIA DEL RADIO ---
   Serial.print("Configurando radio: ");
   
   #if defined(USE_LORA)
@@ -79,27 +72,22 @@ void setup() {
     radio = new LoraRadio(configLora);
 
   #elif defined(USE_XBEE)
-    // --- ESTE BLOQUE ESTÁ LISTO PERO INACTIVO ---
     Serial.println("XBee");
     xbeeSerial.begin(9600);
-// Inicia el puerto serial para el XBee
-    // Crea la instancia de radio para XBee
     radio = new XBeeRadio(xbeeSerial, 9600, -1, -1);
   
   #elif defined(USE_NRF)
     Serial.println("NRF24L01");
-    
     NrfConfig configNrf;
-    // Pines para Arduino Nano/Uno (basado en NodoSensorPowerDown.ino)
+    
     configNrf.cePin = 9;  
     configNrf.csnPin = 10; 
     configNrf.writeAddress = nrfWriteAddress;
     configNrf.readAddress = nrfReadAddress;
     configNrf.channel = 108;           
     
-    // --- VALORES GENÉRICOS ---
-    configNrf.dataRate = 250; // 250KBPS
-    configNrf.paLevel = 0;    // 0 = RF24_PA_MIN
+    configNrf.dataRate = 250; 
+    configNrf.paLevel = 0;    
     
     radio = new NrfRadio(configNrf);
 
@@ -112,22 +100,17 @@ void setup() {
   Serial.println("Módulo de radio inicializado y listo.");
 
   // --- LECTURA INICIAL DE LA EEPROM ---
-  // EEPROM.begin(...);
-// <-- ELIMINADO: No es necesario para Arduino Nano
-  EEPROM.get(1, paquetesEnviados);
-// Lee el valor guardado en la dirección 0
+  EEPROM.get(3, paquetesEnviados);
+// Lee el valor guardado en la dirección 
   Serial.print("Contador recuperado de EEPROM: ");
   Serial.println(paquetesEnviados);
 }
 
-// ======================= LOOP =======================
 void loop() {
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= INTERVAL_MS) {
     previousMillis = currentMillis;
 
-    // radio->despertar();
-// <-- Opcional: si se usa radio->dormir() abajo
 
     float voltage = leerVoltajeZMPT();
     float corriente = leerCorrienteACS();
@@ -144,25 +127,20 @@ void loop() {
     Serial.println(dataPayload);
 
     #if defined(USE_NRF)
-      // NRF envía paquetes puros, el '\n' no es necesario y gasta 1 byte.
-// ADVERTENCIA: La librería RF24 truncará esto a 32 bytes.
+      
       radio->enviar(dataPayload);
     #else
-      // LoRa y XBee (en modo transparente) se benefician del delimitador
+      
       radio->enviar(dataPayload + "\n");
     #endif
     
     // --- GUARDADO EN EEPROM ---
-    EEPROM.put(1, paquetesEnviados);
-// Guarda el nuevo valor del contador
-    // EEPROM.commit();
-// <-- ELIMINADO: No es necesario para Arduino Nano
-    
-    // radio->dormir();
-// <-- Opcional: poner a dormir el radio aquí
+    EEPROM.get(3,, paquetesEnviados);
   }
 
-  // Comprueba si hay comandos entrantes (p.ej. "ON" / "OFF")
+  // Comprueba si hay comandos entrantes ("ON" / "OFF")
+  //La recepción de comandos es igual para todos los módulos
+  //No se implementó lógica porque no es necesaria pero está para el futuro
   if (radio->hayDatosDisponibles()) {
     String comando = radio->leerComoString();
     comando.trim();

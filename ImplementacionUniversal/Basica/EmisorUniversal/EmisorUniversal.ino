@@ -16,8 +16,8 @@
 #include <EEPROM.h>         // Librería para la memoria no volátil
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-#define USE_LORA
-//#define USE_XBEE // <-- Descomenta esta línea para usar XBee
+//#define USE_LORA
+#define USE_XBEE // <-- Descomenta esta línea para usar XBee
 
 // ======================= CONFIGURACIÓN GENERAL DE PINES =======================
 #define RELAY_PIN 4

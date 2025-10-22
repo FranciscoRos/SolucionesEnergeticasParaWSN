@@ -1,21 +1,24 @@
 #pragma once
 #include <Arduino.h>
 #include <LowPower.h>
-/** Esta es una librería para manejar el modo sueño de una red de sensores con XBee o cualquier comunicación inalámbrica,
-  *  junto con una línea para energizar o desenergizar los sensores.
-  *  Autores: Francisco Rosales, Omar Tox, 2025-09.
-  *
+#include "RadioInterface.h" // << CAMBIO: Incluimos la interfaz de radio
+
+/** Esta es una librería para manejar el modo sueño de una red de sensores,
+  * junto con una línea para energizar o desenergizar los sensores.
+  * Ahora es agnóstica al tipo de radio utilizado.
+  * Autores: Francisco Rosales, Omar Tox, 2025-09.
+  * Modificado para usar RadioInterface.
 **/
 
 class EnergyWSN {
 public:
-  /* Estructura que guarda los pines específicos del nodo */
+  /* Estructura que guarda los pines específicos del nodo (excluyendo la radio) */
   struct Pins {
-    uint8_t sleepRq;   // Solicitud de dormir Arduino → XBee SLEEP_RQ (adaptado a 3.3V) 
-    uint8_t onSleep;   // Verificar estado dormido Arduino ← XBee ON/SLEEP (3.3V, entrada)
+    // << CAMBIO: Se eliminaron sleepRq y onSleep. Esos ahora los maneja la clase de la radio.
     uint8_t pwrSens;   // Energizar sensores Arduino → MOSFET/load-switch (HIGH = ON, salvo invertPwr)
     int8_t  vbatSense; // opcional: ADC batería (−1 si no se usa)
   };
+
   /* Estructura de configuración */
   struct Cfg {
     Pins  pins;              // Pines utilizados por proyecto
@@ -23,11 +26,15 @@ public:
     bool  bootSleep = true;  // Estado en que arranca el sistema al encenderse, apagado por defecto
   };
 
-  /* Inicializar los pines dados con la lógica */
-  void begin(const Cfg& cfg) {
+  /**
+   * @brief Inicializa los pines y asocia un módulo de radio.
+   * @param cfg La configuración de pines de EnergyWSN.
+   * @param radio Puntero al objeto de radio (ej. LoraRadio, XBeeRadio) que se va a controlar.
+   */
+  void begin(const Cfg& cfg, RadioInterface* radio) { // << CAMBIO: Se añade un puntero a RadioInterface
     _cfg = cfg;
-    pinMode(_cfg.pins.sleepRq, OUTPUT);
-    pinMode(_cfg.pins.onSleep, INPUT);     
+    _radio = radio; // << CAMBIO: Guardamos la referencia a la radio
+
     pinMode(_cfg.pins.pwrSens, OUTPUT);
     
     if (_cfg.pins.vbatSense >= 0) {
@@ -35,22 +42,29 @@ public:
     }
     powerSensors(false);
 
-
-    if (_cfg.bootSleep){ sleepRadio();
-    } else {wakeRadio();}
+    if (_cfg.bootSleep){ 
+      sleepRadio();
+    } else {
+      wakeRadio();
+    }
   }
 
-  /* Enciende el XBEE */
-  bool wakeRadio(uint16_t timeout_ms = 200) {
-    digitalWrite(_cfg.pins.sleepRq, HIGH);
-    return waitLevel(_cfg.pins.onSleep, HIGH, timeout_ms);
+  /* Despierta la radio usando la interfaz */
+  bool wakeRadio() { // << CAMBIO: Ya no necesita timeout, la implementación de la radio se encarga.
+    if (_radio) {
+      return _radio->despertar();
+    }
+    return false; // No hay radio asociada
   }
 
-  /* Poner XBee a dormir */
-  bool sleepRadio(uint16_t timeout_ms = 200) {
-    digitalWrite(_cfg.pins.sleepRq, LOW);
-    return waitLevel(_cfg.pins.onSleep, LOW, timeout_ms);
+  /* Pone la radio a dormir usando la interfaz */
+  bool sleepRadio() { // << CAMBIO: Ya no necesita timeout.
+    if (_radio) {
+      return _radio->dormir();
+    }
+    return false; // No hay radio asociada
   }
+  
   /** Energizar sensores */
   void powerSensors(bool on) {
     bool level = _cfg.invertPwr ? !on : on;
@@ -73,13 +87,5 @@ public:
 
 private:
   Cfg _cfg;
-
-  bool waitLevel(uint8_t pin, uint8_t targetLevel, uint16_t timeout_ms) {
-    uint32_t t0 = millis();
-    while (millis() - t0 < timeout_ms) {
-      if (digitalRead(pin) == targetLevel) return true;
-      LowPower.powerDown(SLEEP_15MS, ADC_OFF, BOD_OFF);
-    }
-    return (digitalRead(pin) == targetLevel);
-  }
+  RadioInterface* _radio = nullptr; // << CAMBIO: Puntero para almacenar el objeto de radio.
 };

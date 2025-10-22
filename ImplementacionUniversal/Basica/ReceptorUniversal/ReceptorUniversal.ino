@@ -9,6 +9,8 @@
  * en la sección "SELECCIÓN DEL MÓDULO DE RADIO".
  *
  * MODIFICACIÓN: Guarda el contador de paquetes recibidos en la EEPROM.
+ * CORRECCIÓN: Se implementó un buffer para ensamblar mensajes fragmentados
+ * y procesarlos solo cuando están completos.
  */
 
 // --- 1. LIBRERÍAS ---
@@ -17,8 +19,8 @@
 #include <EEPROM.h>           // <-- AÑADIDO: Librería para la memoria no volátil
 
 // --- 2. SELECCIÓN DEL MÓDULO DE RADIO ---
-//#define USE_XBEE // <-- MODO ACTUAL
-#define USE_LORA // <-- Descomenta esta línea para usar LoRa
+#define USE_XBEE // <-- MODO ACTUAL
+//#define USE_LORA // <-- Descomenta esta línea para usar LoRa
 
 // --- 3. CONFIGURACIÓN DE PINES ---
 // Pines para XBee (usando Serial2 en ESP32)
@@ -27,7 +29,13 @@
 
 // --- 4. OBJETOS GLOBALES ---
 RadioInterface* radio;   // Puntero a la interfaz. No le importa si es XBee o LoRa.
-uint32_t mensajesRecibidos; // <-- AÑADIDO: Contador de mensajes recibidos
+uint32_t mensajesRecibidos; // Contador de mensajes recibidos
+
+// ***** INICIO DE LA CORRECCIÓN *****
+// Buffer para acumular los datos que llegan del radio.
+// Esto soluciona el problema de recibir mensajes fragmentados.
+String bufferReceptor = "";
+// ***** FIN DE LA CORRECCIÓN *****
 
 // ======================= SETUP =======================
 void setup() {
@@ -81,33 +89,47 @@ void setup() {
   Serial.println("Módulo de radio inicializado. Esperando datos...");
 
   // --- LECTURA INICIAL DE LA EEPROM ---
-  EEPROM.begin(sizeof(mensajesRecibidos)); // <-- AÑADIDO: Prepara la EEPROM
-  EEPROM.get(0, mensajesRecibidos);        // <-- AÑADIDO: Lee el contador desde la dirección 0
+  EEPROM.begin(sizeof(mensajesRecibidos)); // Prepara la EEPROM
+  EEPROM.get(0, mensajesRecibidos);        // Lee el contador desde la dirección 0
   Serial.print("Contador de mensajes recibidos recuperado de EEPROM: ");
   Serial.println(mensajesRecibidos);
 }
 
-// ======================= LOOP =======================
-// ¡OBSERVA! El loop no necesita ningún cambio.
-// Funciona exactamente igual para XBee y para LoRa.
+// ======================= LOOP (CORREGIDO) =======================
 void loop() {
+  // ***** INICIO DE LA CORRECCIÓN *****
+  // Si hay datos disponibles, los leemos y los añadimos a nuestro buffer.
   if (radio->hayDatosDisponibles()) {
+    bufferReceptor += radio->leerComoString();
+  }
+
+  // Buscamos si en nuestro buffer ya existe un mensaje completo (terminado en '\n').
+  int indiceFinDeLinea = bufferReceptor.indexOf('\n');
+
+  // Si se encontró un fin de línea (índice >= 0), procesamos el mensaje.
+  if (indiceFinDeLinea >= 0) {
+    // 1. Extraemos la línea completa del buffer.
+    String lineaCompleta = bufferReceptor.substring(0, indiceFinDeLinea);
     
-    String datosRecibidos = radio->leerComoString();
-    datosRecibidos.trim();
+    // 2. Eliminamos la línea ya procesada (y el carácter '\n') del buffer.
+    //    Esto deja el buffer listo para el siguiente mensaje.
+    bufferReceptor = bufferReceptor.substring(indiceFinDeLinea + 1);
 
-    if (datosRecibidos.length() > 0) {
-      mensajesRecibidos++; // <-- AÑADIDO: Incrementa el contador
+    // 3. Procesamos la línea que extrajimos.
+    lineaCompleta.trim();
+    if (lineaCompleta.length() > 0) {
+      mensajesRecibidos++;
 
-      Serial.print("Línea recibida #" + String(mensajesRecibidos) + ": --> "); // <-- MODIFICADO para mostrar el contador
-      Serial.println(datosRecibidos);
+      Serial.print("Línea recibida #" + String(mensajesRecibidos) + ": --> ");
+      Serial.println(lineaCompleta);
 
       // --- GUARDADO EN EEPROM ---
-      EEPROM.put(0, mensajesRecibidos); // <-- AÑADIDO: Guarda el nuevo valor
-      EEPROM.commit();                  // <-- AÑADIDO: Asegura la escritura
+      EEPROM.put(0, mensajesRecibidos);
+      EEPROM.commit();
 
       // Usamos la interfaz para enviar una respuesta
       radio->enviar("ON\n");
     }
   }
+  // ***** FIN DE LA CORRECCIÓN *****
 }

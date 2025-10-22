@@ -15,7 +15,7 @@
 #include <UniversalRadioWSN.h>  // Contiene LoraRadio.h, XbeeRadio.h y NrfRadio.h
 #include <SoftwareSerial.h> // Se incluye para la compatibilidad con XBee
 #include <EEPROM.h>         // Librería para la memoria no volátil
-#include <RF24.h>           // Necesario para los tipos de NRF (RF24_250KBPS)
+// #include <RF24.h>        // <-- ELIMINADO: Ya no es necesario aquí
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 #define USE_LORA
@@ -28,20 +28,25 @@
 #define ZMPT_PIN  A1
 #define VBAT_PIN  A2
 
+// 
 // ======================= OBJETOS Y VARIABLES GLOBALES =======================
 RadioInterface* radio;
 
 unsigned long previousMillis = 0;
 const unsigned long INTERVAL_MS = 3000;
-uint32_t paquetesEnviados; // Se inicializa desde la EEPROM en setup()
+uint32_t paquetesEnviados;
+// Se inicializa desde la EEPROM en setup()
 
 // --- Configuración específica por radio ---
 #if defined(USE_XBEE)
-  SoftwareSerial xbeeSerial(2, 3); // RX Pin = 2, TX Pin = 3
+  SoftwareSerial xbeeSerial(2, 3);
+// RX Pin = 2, TX Pin = 3
 #elif defined(USE_NRF)
   // Direcciones para NRF24L01 (basadas en tus .ino)
-  const byte nrfWriteAddress[6] = "00001"; // Dirección del receptor/coordinador
-  const byte nrfReadAddress[6] = "00002";  // Dirección ÚNICA para este emisor (para recibir "ON"/"OFF")
+  const byte nrfWriteAddress[6] = "00001";
+// Dirección del receptor/coordinador
+  const byte nrfReadAddress[6] = "00002";
+// Dirección ÚNICA para este emisor (para recibir "ON"/"OFF")
 #endif
 
 // ======================= SETUP =======================
@@ -76,7 +81,8 @@ void setup() {
   #elif defined(USE_XBEE)
     // --- ESTE BLOQUE ESTÁ LISTO PERO INACTIVO ---
     Serial.println("XBee");
-    xbeeSerial.begin(9600); // Inicia el puerto serial para el XBee
+    xbeeSerial.begin(9600);
+// Inicia el puerto serial para el XBee
     // Crea la instancia de radio para XBee
     radio = new XBeeRadio(xbeeSerial, 9600, -1, -1);
   
@@ -90,9 +96,11 @@ void setup() {
     configNrf.writeAddress = nrfWriteAddress;
     configNrf.readAddress = nrfReadAddress;
     configNrf.channel = 108;           
-    configNrf.dataRate = RF24_250KBPS; 
-    configNrf.paLevel = RF24_PA_MIN;   
-
+    
+    // --- VALORES GENÉRICOS ---
+    configNrf.dataRate = 250; // 250KBPS
+    configNrf.paLevel = 0;    // 0 = RF24_PA_MIN
+    
     radio = new NrfRadio(configNrf);
 
   #endif
@@ -104,8 +112,10 @@ void setup() {
   Serial.println("Módulo de radio inicializado y listo.");
 
   // --- LECTURA INICIAL DE LA EEPROM ---
-  // EEPROM.begin(...); // <-- ELIMINADO: No es necesario para Arduino Nano
-  EEPROM.get(1, paquetesEnviados);         // Lee el valor guardado en la dirección 0
+  // EEPROM.begin(...);
+// <-- ELIMINADO: No es necesario para Arduino Nano
+  EEPROM.get(1, paquetesEnviados);
+// Lee el valor guardado en la dirección 0
   Serial.print("Contador recuperado de EEPROM: ");
   Serial.println(paquetesEnviados);
 }
@@ -113,11 +123,11 @@ void setup() {
 // ======================= LOOP =======================
 void loop() {
   unsigned long currentMillis = millis();
-
   if (currentMillis - previousMillis >= INTERVAL_MS) {
     previousMillis = currentMillis;
 
-    // radio->despertar(); // <-- Opcional: si se usa radio->dormir() abajo
+    // radio->despertar();
+// <-- Opcional: si se usa radio->dormir() abajo
 
     float voltage = leerVoltajeZMPT();
     float corriente = leerCorrienteACS();
@@ -127,14 +137,15 @@ void loop() {
     String dataPayload = "N:" + String(paquetesEnviados) +
                          " V:" + String(voltage, 2) +
                          " I:" + String(corriente, 2) +
-                         " B:" + String(vbat, 2);
+                         " B:" + String(vbat, 
+2);
     
     Serial.print("Enviado: ");
     Serial.println(dataPayload);
 
     #if defined(USE_NRF)
       // NRF envía paquetes puros, el '\n' no es necesario y gasta 1 byte.
-      // ADVERTENCIA: La librería RF24 truncará esto a 32 bytes.
+// ADVERTENCIA: La librería RF24 truncará esto a 32 bytes.
       radio->enviar(dataPayload);
     #else
       // LoRa y XBee (en modo transparente) se benefician del delimitador
@@ -142,10 +153,13 @@ void loop() {
     #endif
     
     // --- GUARDADO EN EEPROM ---
-    EEPROM.put(1, paquetesEnviados); // Guarda el nuevo valor del contador
-    // EEPROM.commit(); // <-- ELIMINADO: No es necesario para Arduino Nano
+    EEPROM.put(1, paquetesEnviados);
+// Guarda el nuevo valor del contador
+    // EEPROM.commit();
+// <-- ELIMINADO: No es necesario para Arduino Nano
     
-    // radio->dormir(); // <-- Opcional: poner a dormir el radio aquí
+    // radio->dormir();
+// <-- Opcional: poner a dormir el radio aquí
   }
 
   // Comprueba si hay comandos entrantes (p.ej. "ON" / "OFF")

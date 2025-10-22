@@ -9,6 +9,7 @@
 /**
  * @struct NrfConfig
  * @brief Almacena los parámetros de configuración para el módulo NRF24L01.
+ * @note Usa tipos genéricos para no exponer la librería RF24 al sketch principal.
  */
 struct NrfConfig {
   uint8_t cePin;
@@ -16,8 +17,8 @@ struct NrfConfig {
   const byte* writeAddress; 
   const byte* readAddress;  
   uint8_t channel;
-  rf24_datarate_e dataRate;
-  rf24_pa_dbm_e paLevel;
+  uint16_t dataRate; // Valor genérico: 250 (para 250KBPS), 1 (para 1MBPS), 2 (para 2MBPS)
+  int8_t paLevel;    // Valor genérico: 0 (MIN), 1 (LOW), 2 (HIGH), 3 (MAX)
 };
 
 /**
@@ -41,6 +42,7 @@ public:
 
   /**
    * @brief Inicializa el hardware NRF24L01 con la configuración proporcionada.
+   * @note Traduce los valores genéricos de NrfConfig a los enums de la librería RF24.
    */
   bool iniciar() override {
     if (!_radio.begin()) {
@@ -48,8 +50,19 @@ public:
     }
 
     _radio.setChannel(_config.channel);
-    _radio.setDataRate(_config.dataRate);
-    _radio.setPALevel(_config.paLevel);
+
+    // --- TRADUCCIÓN DE DATA RATE ---
+    if (_config.dataRate == 250) {
+      _radio.setDataRate(RF24_250KBPS);
+    } else if (_config.dataRate == 2) {
+      _radio.setDataRate(RF24_2MBPS);
+    } else {
+      _radio.setDataRate(RF24_1MBPS); // Default a 1MBPS si no es 250 o 2
+    }
+    
+    // --- TRADUCCIÓN DE PA LEVEL (CORREGIDA) ---
+    // Hacemos un cast directo del valor genérico (int8_t) al enum correcto.
+    _radio.setPALevel((rf24_pa_dbm_e)_config.paLevel); // <-- ESTA ES LA LÍNEA CORREGIDA
     
     //payloads dinámicos
     _radio.enableDynamicPayloads();
@@ -121,4 +134,4 @@ public:
   }
 };
 
-#endif 
+#endif

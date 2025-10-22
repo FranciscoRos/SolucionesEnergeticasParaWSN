@@ -13,13 +13,23 @@
 #include <EEPROM.h>   // <-- AÑADIDO: Librería para memoria no volátil
 
 // --- 2. SELECCIÓN DEL MÓDULO DE RADIO ---
-//#define USE_XBEE // <-- MODO ACTUAL
-#define USE_LORA // <-- Descomenta esta línea para usar LoRa
+#define USE_XBEE // <-- MODO ACTUAL
+//#define USE_LORA // <-- Descomenta esta línea para usar LoRa
+//#define USE_NRF
 
 // --- 3. CONFIGURACIÓN DE PINES ---
 // Pines para XBee (usando Serial2 en ESP32)
 #define RXD2 16
 #define TXD2 17
+
+#if defined(USE_NRF)
+  // Direcciones para NRF24L01 (basadas en tus .ino)
+  const byte nrfReadAddress[6] = "00001";
+// Dirección principal para RECIBIR datos [cite: 2, 8, 24]
+  const byte nrfWriteAddress[6] = "00002";
+// Dirección para ENVIAR respuestas (al Emisor 1)
+#endif
+
 
 // --- 4. OBJETOS GLOBALES ---
 RadioInterface* radio;     // Puntero a la interfaz.
@@ -54,6 +64,24 @@ void setup() {
     configLora.irqPin          = 2;
     configLora.resetPin        = -1;
     radio = new LoraRadio(configLora);
+  #elif defined(USE_NRF)
+    Serial.println("NRF24L01");
+    
+    NrfConfig configNrf;
+    // Pines para ESP32 (basado en CoordinadorNRF.ino)
+    configNrf.cePin = 4; 
+    configNrf.csnPin = 5;
+    configNrf.writeAddress = nrfWriteAddress; // Para responder "ON"
+    configNrf.readAddress = nrfReadAddress;
+// Para recibir datos
+    configNrf.channel = 108;           
+    
+    // --- VALORES GENÉRICOS ---
+    configNrf.dataRate = 250; // 250KBPS
+    configNrf.paLevel = 0;    // 0 = RF24_PA_MIN
+    
+    radio = new NrfRadio(configNrf);
+    
   #endif
   
   // Llama al método 'iniciar()' del objeto que se haya creado.
@@ -67,7 +95,7 @@ void setup() {
   
   // --- LECTURA INICIAL DE LA EEPROM ---
   EEPROM.begin(sizeof(mensajesRecibidos)); // <-- AÑADIDO: Prepara la EEPROM
-  EEPROM.get(0, mensajesRecibidos);        // <-- AÑADIDO: Lee el contador
+  EEPROM.get(1, mensajesRecibidos);        // <-- AÑADIDO: Lee el contador
   Serial.print("Contador de mensajes recuperado de EEPROM: ");
   Serial.println(mensajesRecibidos);
 }
@@ -91,7 +119,7 @@ void loop() {
         mensajesRecibidos++; // <-- AÑADIDO: Incrementa el contador
 
         // --- GUARDADO EN EEPROM ---
-        EEPROM.put(0, mensajesRecibidos); // <-- AÑADIDO: Guarda el nuevo valor
+        EEPROM.put(1, mensajesRecibidos); // <-- AÑADIDO: Guarda el nuevo valor
         EEPROM.commit();                  // <-- AÑADIDO: Asegura la escritura en ESP32
 
         // --- IMPRESIÓN MODIFICADA ---

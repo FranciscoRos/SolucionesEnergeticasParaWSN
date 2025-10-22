@@ -17,13 +17,14 @@
 #include <SPI.h>              // Incluimos SPI porque es necesario para LoRa y NRF
 #include "UniversalRadioWSN.h" // Nuestra librería principal
 #include <EEPROM.h>           // <-- AÑADIDO: Librería para la memoria no volátil
-#include <RF24.h>             // Necesario para los tipos de NRF
+// #include <RF24.h>          // <-- ELIMINADO: Ya no es necesario aquí
 
 // --- 2. SELECCIÓN DEL MÓDULO DE RADIO ---
 //#define USE_XBEE 
 #define USE_LORA 
 //#define USE_NRF // <-- MÓDULO NRF24L01 ACTIVADO
 
+// 
 // --- 3. CONFIGURACIÓN DE PINES Y DIRECCIONES ---
 // Pines para XBee (usando Serial2 en ESP32)
 #define RXD2 16
@@ -31,8 +32,10 @@
 
 #if defined(USE_NRF)
   // Direcciones para NRF24L01 (basadas en tus .ino)
-  const byte nrfReadAddress[6] = "00001"; // Dirección principal para RECIBIR datos [cite: 2, 8, 24]
-  const byte nrfWriteAddress[6] = "00002"; // Dirección para ENVIAR respuestas (al Emisor 1)
+  const byte nrfReadAddress[6] = "00001";
+// Dirección principal para RECIBIR datos [cite: 2, 8, 24]
+  const byte nrfWriteAddress[6] = "00002";
+// Dirección para ENVIAR respuestas (al Emisor 1)
 #endif
 
 // --- 4. OBJETOS GLOBALES ---
@@ -57,9 +60,9 @@ void setup() {
     Serial.println("XBee");
     // Inicia el puerto físico que usará el XBee
     Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
-    // Crea el objeto XBeeRadio y lo asigna a nuestra interfaz
+// Crea el objeto XBeeRadio y lo asigna a nuestra interfaz
     radio = new XBeeRadio(Serial2, 9600, -1, -1);
-
+  
   #elif defined(USE_LORA)
     Serial.println("LoRa");
     SPI.begin(); // LoRa necesita que el bus SPI esté activo
@@ -72,11 +75,13 @@ void setup() {
     configLora.codingRate      = 5;
     configLora.syncWord        = 0xF3;
     configLora.txPower         = 20; 
-
+    
     // --- PINES ACTUALIZADOS SEGÚN TU HARDWARE ---
-    configLora.csPin           = 5;   // Tu pin NSS va aquí
-    configLora.irqPin          = 2;   // Tu pin DIO0 va aquí
-    configLora.resetPin        = -1;  
+    configLora.csPin           = 5;
+// Tu pin NSS va aquí
+    configLora.irqPin          = 2;
+// Tu pin DIO0 va aquí
+    configLora.resetPin        = -1;
     
     // Creamos el objeto LoraRadio con su configuración
     radio = new LoraRadio(configLora);
@@ -86,14 +91,17 @@ void setup() {
     
     NrfConfig configNrf;
     // Pines para ESP32 (basado en CoordinadorNRF.ino)
-    configNrf.cePin = 4;  
-    configNrf.csnPin = 5; 
+    configNrf.cePin = 4; 
+    configNrf.csnPin = 5;
     configNrf.writeAddress = nrfWriteAddress; // Para responder "ON"
-    configNrf.readAddress = nrfReadAddress;   // Para recibir datos
+    configNrf.readAddress = nrfReadAddress;
+// Para recibir datos
     configNrf.channel = 108;           
-    configNrf.dataRate = RF24_250KBPS; 
-    configNrf.paLevel = RF24_PA_MIN;  
-
+    
+    // --- VALORES GENÉRICOS ---
+    configNrf.dataRate = 250; // 250KBPS
+    configNrf.paLevel = 0;    // 0 = RF24_PA_MIN
+    
     radio = new NrfRadio(configNrf);
     
   #endif
@@ -101,14 +109,16 @@ void setup() {
   // Este código es común para TODOS los módulos.
   if (!radio->iniciar()) {
     Serial.println("¡ERROR! Fallo al iniciar el módulo de radio.");
-    while (true); // Detiene la ejecución
+    while (true);
+// Detiene la ejecución
   }
   
   Serial.println("Módulo de radio inicializado. Esperando datos...");
 
   // --- LECTURA INICIAL DE LA EEPROM ---
   // Asumiendo ESP32 (basado en el uso de EEPROM.commit y Serial2)
-  EEPROM.begin(sizeof(mensajesRecibidos)); // Prepara la EEPROM
+  EEPROM.begin(sizeof(mensajesRecibidos));
+// Prepara la EEPROM
   EEPROM.get(1, mensajesRecibidos);        // Lee el contador desde la dirección 0
   Serial.print("Contador de mensajes recibidos recuperado de EEPROM: ");
   Serial.println(mensajesRecibidos);
@@ -119,10 +129,12 @@ void loop() {
 
 #if defined(USE_NRF)
   // --- LÓGICA PARA NRF24L01 (Paquetes discretos) ---
-  // NRF no usa streaming ni '\n'. Cada lectura es un paquete completo.
+  // NRF no usa streaming ni '\n'.
+// Cada lectura es un paquete completo.
   if (radio->hayDatosDisponibles()) {
     String lineaCompleta = radio->leerComoString();
-    lineaCompleta.trim(); // Quita espacios/nulos extra
+    lineaCompleta.trim();
+// Quita espacios/nulos extra
 
     if (lineaCompleta.length() > 0) {
       mensajesRecibidos++;
@@ -132,11 +144,13 @@ void loop() {
 
       // --- GUARDADO EN EEPROM ---
       EEPROM.put(1, mensajesRecibidos);
-      EEPROM.commit();  // Guardar en Flash (para ESP32)
+      EEPROM.commit();
+// Guardar en Flash (para ESP32)
 
       // Usamos la interfaz para enviar una respuesta
       // (El emisor NRF debe estar escuchando en el pipe de respuesta)
-      radio->enviar("ON"); // Envía "ON" (sin \n)
+      radio->enviar("ON");
+// Envía "ON" (sin \n)
     }
   }
 
@@ -169,10 +183,12 @@ void loop() {
 
       // --- GUARDADO EN EEPROM ---
       EEPROM.put(0, mensajesRecibidos);
-      EEPROM.commit(); // Guardar en Flash (para ESP32)
+      EEPROM.commit();
+// Guardar en Flash (para ESP32)
 
       // Usamos la interfaz para enviar una respuesta
-      radio->enviar("ON\n"); // Envía "ON" (con \n)
+      radio->enviar("ON\n");
+// Envía "ON" (con \n)
     }
   }
   // ***** FIN DE LA CORRECCIÓN ORIGINAL *****

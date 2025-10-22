@@ -14,8 +14,9 @@
 #include <EEPROM.h>         // <-- AÑADIDO: Librería para memoria no volátil
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-#define USE_LORA
-//#define USE_XBEE // <-- Descomenta esta línea para usar XBee
+//define USE_LORA
+#define USE_XBEE // <-- Descomenta esta línea para usar XBee
+//#define USE_NRF
 
 // ======================= CONFIGURACIÓN GENERAL DE PINES =======================
 #define RELAY_PIN 4
@@ -32,8 +33,13 @@ uint32_t paquetesEnviados; // <-- AÑADIDO: Se inicializa desde la EEPROM en set
 // --- Objeto de puerto serial para el XBee (listo para usarse) ---
 #if defined(USE_XBEE)
   SoftwareSerial xbeeSerial(2, 3); // RX Pin = 2, TX Pin = 3
+#elif defined(USE_NRF)
+  // Direcciones para NRF24L01 (basadas en tus .ino)
+  const byte nrfWriteAddress[6] = "00001";
+// Dirección del receptor/coordinador
+  const byte nrfReadAddress[6] = "00002";
+// Dirección ÚNICA para este emisor (para recibir "ON"/"OFF")
 #endif
-
 // ======================= SETUP =======================
 void setup() {
   pinMode(RELAY_PIN, OUTPUT);
@@ -64,6 +70,22 @@ void setup() {
     Serial.println("XBee");
     xbeeSerial.begin(9600); // Inicia el puerto serial para el XBee
     radio = new XBeeRadio(xbeeSerial, 9600, -1, -1);
+    #elif defined(USE_NRF)
+    Serial.println("NRF24L01");
+    
+    NrfConfig configNrf;
+    // Pines para Arduino Nano/Uno (basado en NodoSensorPowerDown.ino)
+    configNrf.cePin = 9;  
+    configNrf.csnPin = 10; 
+    configNrf.writeAddress = nrfWriteAddress;
+    configNrf.readAddress = nrfReadAddress;
+    configNrf.channel = 108;           
+    
+    // --- VALORES GENÉRICOS ---
+    configNrf.dataRate = 250; // 250KBPS
+    configNrf.paLevel = 0;    // 0 = RF24_PA_MIN
+    
+    radio = new NrfRadio(configNrf);
   #endif
   
   if (!radio->iniciar()) {
@@ -73,7 +95,7 @@ void setup() {
   Serial.println("Módulo de radio inicializado y listo.");
 
   // --- LECTURA INICIAL DE LA EEPROM ---
-  EEPROM.get(0, paquetesEnviados); // <-- AÑADIDO: Lee el valor guardado
+  EEPROM.get(1, paquetesEnviados); // <-- AÑADIDO: Lee el valor guardado
   Serial.print("Contador recuperado de EEPROM: ");
   Serial.println(paquetesEnviados);
 }
@@ -105,7 +127,7 @@ void loop() {
     radio->enviar(frameBuffer, WSNFrame::FRAME_SIZE);
     
     // --- GUARDADO EN EEPROM ---
-    EEPROM.put(0, paquetesEnviados); // <-- AÑADIDO: Guarda el nuevo valor del contador
+    EEPROM.put(1, paquetesEnviados); // <-- AÑADIDO: Guarda el nuevo valor del contador
 
     // --- IMPRESIÓN MODIFICADA ---
     Serial.print("Enviando -> ");

@@ -12,19 +12,16 @@
 #include <SPI.h>
 #include <UniversalRadioWSN.h>
 #include <SoftwareSerial.h>
-#include "AdaptiveTXWSN.h" // --> CAMBIO: Se incluye la nueva librería.
+#include "AdaptiveTXWSN.h"
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 // Descomenta solo UNA de las siguientes dos líneas.
-#define USE_LORA
 //#define USE_XBEE
+//#define USE_LORA
+#define USE_NRF
+
 
 // --- VERIFICACIÓN DE COMPILACIÓN ---
-#if defined(USE_LORA) && defined(USE_XBEE)
-  #error "Solo puedes definir USE_LORA o USE_XBEE, pero no ambos."
-#elif !defined(USE_LORA) && !defined(USE_XBEE)
-  #error "Debes definir USE_LORA o USE_XBEE para compilar."
-#endif
 
 // ======================= CONFIGURACIÓN GENERAL DE PINES =======================
 #define RELAY_PIN 4
@@ -44,6 +41,10 @@ uint32_t paquetesEnviados = 0;
 // --- Objeto de puerto serial para el XBee (listo para usarse) ---
 #if defined(USE_XBEE)
   SoftwareSerial xbeeSerial(2, 3); // RX Pin = 2, TX Pin = 3
+
+#elif defined(USE_NRF)
+  const byte nrfWriteAddress[6] = "00001";
+  const byte nrfReadAddress[6] = "00002";
 #endif
 
 // ======================= SETUP =======================
@@ -62,14 +63,13 @@ void setup() {
   // -- Configuración específica de la placa (Arduino Uno/Nano 5V) --
   configEnergia.pinAdcBateria        = VBAT_PIN;
   configEnergia.voltajeReferenciaAdc = 5.0f;     // Para Arduino a 5V
-  configEnergia.resolucionAdcMax     = 1023.0f;  // ADC de 10 bits
 
   // -- Configuración del divisor de voltaje para la batería --
   // Tu función original `leerVoltajeBateria` multiplicaba por 3.0.
   // Esto equivale a un divisor con R_arriba=20k y R_abajo=10k.
   // (20k + 10k) / 10k = 3.0
-  configEnergia.divisorRArriba_k = 20.0f;
-  configEnergia.divisorRAbajo_k  = 10.0f;
+  configEnergia.divisorRArriba_k = 100.0f;
+  configEnergia.divisorRAbajo_k  = 33.3f;
   
   // -- Umbrales y períodos (AJUSTA ESTO PARA TU BATERÍA) --
   configEnergia.umbralAlto_V   = 4.00f;  // Umbral para considerar batería alta (LiPo)
@@ -77,9 +77,17 @@ void setup() {
   configEnergia.corteVoltaje_V = 3.40f;  // Voltaje de seguridad para dejar de enviar
   configEnergia.periodoAlto_ms = 10000;  // Enviar cada 10 segundos con batería llena
   configEnergia.periodoMedio_ms= 30000;  // Enviar cada 30 segundos con batería media
-  configEnergia.periodoBajo_ms = 120000; // Enviar cada 2 minutos con batería baja
+  configEnergia.periodoBajo_ms = 12000; // Enviar cada 2 minutos con batería baja
 
-  txManager.begin(configEnergia); // Se inicializa la librería con la configuración.
+  // Pasa la configuración Y todos los umbrales/periodos como argumentos separados
+txManager.begin(configEnergia, 
+                configEnergia.umbralAlto_V, 
+                configEnergia.umbralMedio_V, 
+                configEnergia.corteVoltaje_V, 
+                configEnergia.fraccionHisteresis, 
+                configEnergia.periodoAlto_ms, 
+                configEnergia.periodoMedio_ms, 
+                configEnergia.periodoBajo_ms);
 
   // --- INYECCIÓN DE DEPENDENCIA DEL RADIO (Sin cambios) ---
   Serial.print("Configurando radio: ");
@@ -104,6 +112,21 @@ void setup() {
     Serial.println("XBee");
     xbeeSerial.begin(9600);
     radio = new XBeeRadio(xbeeSerial, 9600, -1, -1);
+
+  #elif defined(USE_NRF)
+    Serial.println("NRF24L01");
+    NrfConfig configNrf;
+
+    configNrf.cePin = 9;
+    configNrf.csnPin = 10;
+    configNrf.writeAddress = nrfWriteAddress;
+    configNrf.readAddress = nrfReadAddress;
+    configNrf.channel = 108;
+
+    configNrf.dataRate = 250;
+    configNrf.paLevel = 0;
+
+    radio = new NrfRadio(configNrf);
   #endif
   
   if (!radio->iniciar()) {
@@ -128,11 +151,16 @@ void loop() {
                          " V:" + String(voltage, 2) +
                          " I:" + String(corriente, 2) +
                          " B:" + String(vbat, 2);
-
-    radio->enviar(dataPayload);
     
     Serial.print("Enviado (Nivel Bateria: " + String(txManager.level()) + "): ");
     Serial.println(dataPayload);
+
+    #if defined(USE_NRF)
+      radio->enviar(dataPayload);
+    #else
+      radio->enviar(dataPayload + "\n");
+    #endif
+
   }
 
   // --- Recepción de comandos (sin cambios) ---

@@ -15,9 +15,9 @@
 #include <CodecWSN.h>       // Librería para codificación binaria
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-//#define USE_LORA
+#define USE_LORA
 //#define USE_XBEE 
-#define USE_NRF 
+//#define USE_NRF 
 
 // ======================= 2. CONFIGURACIÓN GENERAL DE PINES =======================
 // --- Pines comunes ---

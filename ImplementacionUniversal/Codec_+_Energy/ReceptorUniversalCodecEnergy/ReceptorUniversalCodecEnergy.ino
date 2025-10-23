@@ -14,8 +14,8 @@
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 //#define USE_XBEE 
-//#define USE_LORA 
-#define USE_NRF // Asegúrate que coincida con el Emisor
+#define USE_LORA 
+//#define USE_NRF // Asegúrate que coincida con el Emisor
 
 // ======================= CONFIGURACIÓN Y VARIABLES GLOBALES =======================
 // Pines para XBee (usando Serial2 en ESP32)
@@ -37,7 +37,7 @@ uint32_t mensajesRecibidos;
 void setup() {
   Serial.begin(115200); // Se usa 115200 para el receptor (ESP32/PC)
   while (!Serial);
-  Serial.println("\n--- RECEPTOR UNIVERSAL INICIADO (MODO BINARIO) ---");
+  Serial.println("\n--- RECEPTOR UNIVERSAL INICIADO (MODO BINARIO receptor Energy) ---");
 
   // --- INICIALIZACIÓN DEL MÓDULO DE RADIO ---
   Serial.print("Configurando radio: ");

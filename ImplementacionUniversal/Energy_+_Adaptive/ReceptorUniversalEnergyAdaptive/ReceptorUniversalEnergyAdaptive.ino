@@ -37,7 +37,7 @@ void setup() {
   Serial.begin(115200);
   while (!Serial);
 
-  Serial.println("\n--- RECEPTOR UNIVERSAL INICIADO ---");
+  Serial.println("\n--- RECEPTOR UNIVERSAL ENERGY INICIADO ---");
 
   // --- INICIALIZACIÓN DEL MÓDULO DE RADIO ---
   Serial.print("Configurando radio: ");

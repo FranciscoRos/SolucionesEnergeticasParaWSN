@@ -287,4 +287,6 @@ float leerVoltajeZMPT() {
 float leerCorrienteACS() {
   int lectura = analogRead(ACS_PIN);
   float volt = (lectura * 5.0) / 1023.0; 
-  return (volt - 2.5) / 0.066; 
+  return (volt - 2.5) / 0.066; }
+
+  

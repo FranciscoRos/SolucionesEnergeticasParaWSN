@@ -41,7 +41,7 @@
 #endif
 
 // ======================= 3. CONFIGURACIÓN DE EEPROM ======================= 
-#define EEPROM_COUNTER_ADDR 3 
+#define EEPROM_COUNTER_ADDR 6
 
 // ======================= 4. OBJETOS Y VARIABLES GLOBALES =======================
 RadioInterface* radio;

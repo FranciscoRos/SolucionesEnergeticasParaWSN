@@ -8,27 +8,25 @@
  * automática según el voltaje de la batería.
  * 2. CodecWSN: Para codificación binaria eficiente del payload.
  *
- * Utiliza EEPROM para persistir el contador de paquetes.
  */
 
 // --- LIBRERÍAS DE LA APLICACIÓN ---
 #include <SPI.h>
+#include <SoftwareSerial.h> 
+#include <EEPROM.h>       
+
 #include <UniversalRadioWSN.h>
-#include <SoftwareSerial.h>
-#include "AdaptiveTXWSN.h"
-#include <CodecWSN.h>       // <-- AÑADIDO: Para codificación binaria
-#include <EEPROM.h>         // <-- AÑADIDO: Para persistencia del contador
+#include <AdaptiveTXWSN.h>
+#include <CodecWSN.h>        
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-// Descomenta solo UNA de las siguientes líneas.
-//#define USE_LORA
-#define USE_XBEE
+#define USE_LORA
+//#define USE_XBEE
 //#define USE_NRF
 
 
 // ======================= 2. SELECCIÓN DEL MODO DE PAYLOAD =======================
-// Descomenta esta línea para usar CodecWSN (payload binario eficiente).
-// Coméntala para usar el payload de String (modo texto/ASCII).
+// Descomenta esta línea para usar CodecWSN o coméntala para usar el payload de String 
 #define USE_BINARY_ENCODING
 
 
@@ -39,17 +37,16 @@
 #define VBAT_PIN  A2
 
 // ======================= CONFIGURACIÓN DE EEPROM =======================
-// Dirección de memoria para guardar el contador de paquetes
 #define EEPROM_COUNTER_ADDR 3 
 
 
 // ======================= OBJETOS Y VARIABLES GLOBALES =======================
 RadioInterface* radio;
-AdaptiveTXWSN txManager;     // Objeto para gestionar la energía y el tiempo de envío.
-AdaptiveTXWSN::Cfg configEnergia; // <-- Objeto de config movido a global
-uint32_t paquetesEnviados = 0; // Contador de paquetes
+AdaptiveTXWSN txManager;     
+AdaptiveTXWSN::Cfg configEnergia; 
+uint32_t paquetesEnviados = 0; 
 
-// --- Objeto de puerto serial para el XBee (listo para usarse) ---
+// --- Objeto de puerto serial para el XBee ---
 #if defined(USE_XBEE)
   SoftwareSerial xbeeSerial(2, 3); // RX Pin = 2, TX Pin = 3
 
@@ -67,40 +64,26 @@ void setup() {
   while(!Serial);
   Serial.println("\n--- INICIANDO EMISOR UNIVERSAL (ADAPTATIVO + BINARIO) ---");
 
-  // --> CAMBIO: Se configura el gestor de energía adaptativo.
   Serial.println("Configurando gestor de energía adaptativo...");
-  // La declaración de 'configEnergia' se movió a global
-
-  // -- Configuración específica de la placa (Arduino Uno/Nano 5V) --
-  configEnergia.pinAdcBateria       = VBAT_PIN;
-  configEnergia.voltajeReferenciaAdc = 5.0f;     // Para Arduino a 5V
-
-  // --- INICIO DE LA MODIFICACIÓN PARA TESTING (FACTOR 1.0) ---
-  // Le decimos a la librería que no hay divisor de voltaje
-  configEnergia.divisorRArriba_k = 0.00f;
-  configEnergia.divisorRAbajo_k  = 0.1f; // (divisorRArriba_k + divisorRAbajo_k) / 1 = 1.0
-  // --- FIN DE LA MODIFICACIÓN PARA TESTING ---
   
-  // -- Umbrales y períodos (AJUSTA ESTO PARA TU BATERÍA) --
-  configEnergia.umbralAlto_V   = 4.00f;   // Umbral para considerar batería alta (LiPo)
-  configEnergia.umbralMedio_V  = 3.70f;   // Umbral para considerar batería media (LiPo)
-  configEnergia.corteVoltaje_V = 1.0f;   // Voltaje de seguridad para dejar de enviar
-  configEnergia.periodoAlto_ms = 3000;  // Enviar cada 10 segundos con batería llena
-  configEnergia.periodoMedio_ms= 5000;  // Enviar cada 30 segundos con batería media
-  configEnergia.periodoBajo_ms = 12000; // Enviar cada 2 minutos con batería baja
+  configEnergia.pinAdcBateria       = VBAT_PIN;
+  configEnergia.voltajeReferenciaAdc = 5.0f;     
 
-  // Pasa la configuración Y todos los umbrales/periodos como argumentos separados
-  txManager.begin(configEnergia, 
-                  configEnergia.umbralAlto_V, 
-                  configEnergia.umbralMedio_V, 
-                  configEnergia.corteVoltaje_V, 
-                  configEnergia.fraccionHisteresis, 
-                  configEnergia.periodoAlto_ms, 
-                  configEnergia.periodoMedio_ms, 
-                  configEnergia.periodoBajo_ms);
+  configEnergia.divisorRArriba_k = 0.99f;
+  configEnergia.divisorRAbajo_k  = 0.1f; 
+  
+  // -- Umbrales y períodos --
+  configEnergia.umbralAlto_V   = 4.00f;
+  configEnergia.umbralMedio_V  = 3.70f;
+  configEnergia.corteVoltaje_V = 1.0f;
+  configEnergia.periodoAlto_ms = 3000;
+  configEnergia.periodoMedio_ms= 5000;
+  configEnergia.periodoBajo_ms = 12000;
+
+  // Pasa la configuración
+  txManager.begin(configEnergia);
 
   // --- LECTURA INICIAL DE LA EEPROM ---
-  // Recupera el último contador de paquetes guardado
   EEPROM.get(EEPROM_COUNTER_ADDR, paquetesEnviados);
   Serial.print("Contador recuperado de EEPROM: ");
   Serial.println(paquetesEnviados);
@@ -155,7 +138,7 @@ void setup() {
 // ======================= LOOP =======================
 void loop() {
   
-  // txManager decide cuándo enviar (reemplaza el temporizador manual)
+  // txManager decide cuándo enviar 
   if (txManager.tick()) {
     
     // 1. Leer los sensores
@@ -168,15 +151,10 @@ void loop() {
 
     // 3. Guardar el nuevo contador en EEPROM
     EEPROM.put(EEPROM_COUNTER_ADDR, paquetesEnviados);
-
-
-    // --- INICIO DE LA MODIFICACIÓN CORREGIDA ---
     
-    // 4. Determinar el intervalo actual para el mensaje
+    // 4. Determinar el intervalo actual
     long currentPeriod_ms = 0;
     String currentLevelStr; // String para almacenar el texto
-    
-    // Convertimos el enum a 'int'. Esto evita el conflicto de macros.
     int currentLevel = (int)txManager.level(); 
 
     // Usamos los valores enteros del enum (BATT_HIGH=2, BATT_MID=1, BATT_LOW=0)
@@ -201,31 +179,30 @@ void loop() {
     
     float periodInSeconds = currentPeriod_ms / 1000.0;
 
-    // 5. Imprimir el nuevo mensaje de estado
-    Serial.println("----------------------------------------"); // Separador
+    // 5. Imprimir el mensaje de estado de batería
+    Serial.println("----------------------------------------");
     Serial.print("Nivel Bateria: " + currentLevelStr); 
     Serial.print(" (" + String(vbat, 2) + "V). ");
     Serial.print("Proximo envio en: " + String(periodInSeconds, 0) + " seg.");
     Serial.println();
-    // --- FIN DE LA MODIFICACIÓN CORREGIDA ---
 
 
     // 6. Decidir el formato del payload (Binario o Texto)
     #if defined(USE_BINARY_ENCODING)
       // --- MODO BINARIO (CodecWSN) ---
       
-      // 6a. Crear el paquete de datos estructurado
+      //Crear el paquete 
       Packet miPaquete;
       miPaquete.id = paquetesEnviados;
-      miPaquete.voltaje = (int16_t)(voltage * 100);    // Guarda 120.55V como 12055
-      miPaquete.corriente = (int16_t)(corriente * 1000);// Guarda 1.25A como 1250 (mA)
-      miPaquete.vbat = (uint16_t)(vbat * 100);      // Guarda 4.15V como 415
+      miPaquete.voltaje = (int16_t)(voltage * 100);    
+      miPaquete.corriente = (int16_t)(corriente * 1000);
+      miPaquete.vbat = (uint16_t)(vbat * 100);
 
-      // 6b. Codificar el paquete en un frame binario
+      // Codificar el paquete en un frame binario
       uint8_t frameBuffer[WSNFrame::FRAME_SIZE];
       WSNFrame::encodeFrameFromPacket(frameBuffer, miPaquete);
 
-      // 6c. Enviar el frame binario
+      // Enviar el frame binario
       radio->enviar(frameBuffer, WSNFrame::FRAME_SIZE);
 
       // --- IMPRESIÓN EN MONITOR SERIAL (MODO BINARIO) ---
@@ -238,7 +215,7 @@ void loop() {
     #else
       // --- MODO TEXTO (String) ---
       
-      // 6a. Crear el payload como String
+      // Crear el payload como String
       String dataPayload = "N:" + String(paquetesEnviados) +
                            " V:" + String(voltage, 2) +
                            " I:" + String(corriente, 2) +
@@ -246,10 +223,10 @@ void loop() {
       
       Serial.print("  -> Enviando Paquete (ASCII): "); 
       Serial.println(dataPayload);
-
-      // 6b. Enviar el payload de String
+      
+      // Enviar el payload de String
       #if defined(USE_NRF)
-        radio->enviar(dataPayload); // NRF no necesita el '\n'
+        radio->enviar(dataPayload); 
       #else
         radio->enviar(dataPayload + "\n");
       #endif
@@ -257,8 +234,7 @@ void loop() {
     #endif
   }
 
-  // --- Recepción de comandos (sin cambios) ---
-  // Esto ahora funciona porque HIGH y LOW siguen definidos por Arduino.h
+  // --- Recepción de comandos ---
   if (radio->hayDatosDisponibles()) {
     String comando = radio->leerComoString();
     comando.trim();
@@ -277,16 +253,14 @@ void loop() {
 }
 
 // ======================= FUNCIONES DE LECTURA DE SENSORES =======================
-// (Nota: leerVoltajeBateria() ya no es necesaria aquí, 
-//  porque txManager la gestiona internamente)
 
 float leerVoltajeZMPT() {
   int lectura = analogRead(ZMPT_PIN);
-  return ((lectura * 5.0) / 1023.0) * 50.0; // Asume Arduino 5V 10-bit
+  return ((lectura * 5.0) / 1023.0) * 50.0;
 }
 
 float leerCorrienteACS() {
   int lectura = analogRead(ACS_PIN);
-  float volt = (lectura * 5.0) / 1023.0; // Asume Arduino 5V 10-bit
+  float volt = (lectura * 5.0) / 1023.0;
   return (volt - 2.5) / 0.066;
 }

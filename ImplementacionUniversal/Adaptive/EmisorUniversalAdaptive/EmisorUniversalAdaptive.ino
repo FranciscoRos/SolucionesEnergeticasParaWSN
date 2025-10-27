@@ -1,9 +1,9 @@
 /*
  * ==========================================================
- * ==   SKETCH EMISOR UNIVERSAL (LoRa + XBee Preparado)    ==
+ * ==   SKETCH EMISOR UNIVERSAL (LoRa + XBee + NRF24L01)   ==
  * ==   CON GESTIÓN ADAPTATIVA DE ENERGÍA                  ==
  * ==========================================================
- * Este sketch usa LoRa/XBee y ajusta su frecuencia de envío
+ * Este sketch usa LoRa/XBee/NRF24L01 y ajusta su frecuencia de envío
  * automáticamente según el nivel de la batería para ahorrar
  * energía, usando la librería AdaptiveTXWSN.
  */
@@ -12,16 +12,14 @@
 #include <SPI.h>
 #include <UniversalRadioWSN.h>
 #include <SoftwareSerial.h>
-#include "AdaptiveTXWSN.h"
+#include <AdaptiveTXWSN.h>
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-// Descomenta solo UNA de las siguientes dos líneas.
 //#define USE_XBEE
-//#define USE_LORA
-#define USE_NRF
+#define USE_LORA
+//#define USE_NRF
 
 
-// --- VERIFICACIÓN DE COMPILACIÓN ---
 
 // ======================= CONFIGURACIÓN GENERAL DE PINES =======================
 #define RELAY_PIN 4
@@ -31,12 +29,10 @@
 
 // ======================= OBJETOS Y VARIABLES GLOBALES =======================
 RadioInterface* radio;
-AdaptiveTXWSN txManager; // --> CAMBIO: Se crea el objeto para gestionar la energía.
+AdaptiveTXWSN txManager; 
 uint32_t paquetesEnviados = 0;
 
-// --> CAMBIO: Se eliminan las variables del temporizador manual.
-// unsigned long previousMillis = 0;
-// const unsigned long INTERVAL_MS = 3000;
+
 
 // --- Objeto de puerto serial para el XBee (listo para usarse) ---
 #if defined(USE_XBEE)
@@ -56,40 +52,29 @@ void setup() {
   while(!Serial);
   Serial.println("\n--- INICIANDO EMISOR UNIVERSAL ADAPTATIVO ---");
 
-  // --> CAMBIO: Se configura el gestor de energía adaptativo.
+
   Serial.println("Configurando gestor de energía adaptativo...");
   AdaptiveTXWSN::Cfg configEnergia;
 
-  // -- Configuración específica de la placa (Arduino Uno/Nano 5V) --
+
   configEnergia.pinAdcBateria        = VBAT_PIN;
   configEnergia.voltajeReferenciaAdc = 5.0f;     // Para Arduino a 5V
 
-  // -- Configuración del divisor de voltaje para la batería --
-  // Tu función original `leerVoltajeBateria` multiplicaba por 3.0.
-  // Esto equivale a un divisor con R_arriba=20k y R_abajo=10k.
-  // (20k + 10k) / 10k = 3.0
-  configEnergia.divisorRArriba_k = 100.0f;
-  configEnergia.divisorRAbajo_k  = 33.3f;
+  configEnergia.divisorRArriba_k = 0.1f;
+  configEnergia.divisorRAbajo_k  = 0.99f;
   
-  // -- Umbrales y períodos (AJUSTA ESTO PARA TU BATERÍA) --
-  configEnergia.umbralAlto_V   = 4.00f;  // Umbral para considerar batería alta (LiPo)
-  configEnergia.umbralMedio_V  = 3.70f;  // Umbral para considerar batería media (LiPo)
-  configEnergia.corteVoltaje_V = 3.40f;  // Voltaje de seguridad para dejar de enviar
-  configEnergia.periodoAlto_ms = 10000;  // Enviar cada 10 segundos con batería llena
-  configEnergia.periodoMedio_ms= 30000;  // Enviar cada 30 segundos con batería media
-  configEnergia.periodoBajo_ms = 12000; // Enviar cada 2 minutos con batería baja
+  // -- Umbrales y períodos  --
+  configEnergia.umbralAlto_V   = 4.00f;  
+  configEnergia.umbralMedio_V  = 2.0f;  
+  configEnergia.corteVoltaje_V = 1.0f;  
+  configEnergia.periodoAlto_ms = 2000;  
+  configEnergia.periodoMedio_ms= 4000;  
+  configEnergia.periodoBajo_ms = 10000; 
 
-  // Pasa la configuración Y todos los umbrales/periodos como argumentos separados
-txManager.begin(configEnergia, 
-                configEnergia.umbralAlto_V, 
-                configEnergia.umbralMedio_V, 
-                configEnergia.corteVoltaje_V, 
-                configEnergia.fraccionHisteresis, 
-                configEnergia.periodoAlto_ms, 
-                configEnergia.periodoMedio_ms, 
-                configEnergia.periodoBajo_ms);
+  // Pasa la configuración 
+txManager.begin(configEnergia);
 
-  // --- INYECCIÓN DE DEPENDENCIA DEL RADIO (Sin cambios) ---
+  // --- INYECCIÓN DE DEPENDENCIA DEL RADIO ---
   Serial.print("Configurando radio: ");
   
   #if defined(USE_LORA)
@@ -163,7 +148,7 @@ void loop() {
 
   }
 
-  // --- Recepción de comandos (sin cambios) ---
+  // --- Recepción de comandos ---
   if (radio->hayDatosDisponibles()) {
     String comando = radio->leerComoString();
     comando.trim();
@@ -182,11 +167,11 @@ void loop() {
 // ======================= FUNCIONES DE LECTURA DE SENSORES =======================
 float leerVoltajeZMPT() {
   int lectura = analogRead(ZMPT_PIN);
-  return ((lectura * 5.0) / 1023.0) * 50.0; // Asume Arduino 5V 10-bit
+  return ((lectura * 5.0) / 1023.0) * 50.0; 
 }
 
 float leerCorrienteACS() {
   int lectura = analogRead(ACS_PIN);
-  float volt = (lectura * 5.0) / 1023.0; // Asume Arduino 5V 10-bit
+  float volt = (lectura * 5.0) / 1023.0; 
   return (volt - 2.5) / 0.066;
 }

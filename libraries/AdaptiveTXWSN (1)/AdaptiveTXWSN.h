@@ -72,25 +72,12 @@
     * @param periodoMedio_ms Período de envío (ms) para nivel MEDIO.
     * @param periodoBajo_ms Período de envío (ms) para nivel BAJO.
     */
-   void begin(const Cfg& cfg,
-             float umbralAlto_V, float umbralMedio_V,
-             float corteVoltaje_V,
-             float fraccionHisteresis,
-             uint32_t periodoAlto_ms,
-             uint32_t periodoMedio_ms,
-             uint32_t periodoBajo_ms)
+   void begin(const Cfg& cfg)
    {
      _configuracion = cfg;
  
      // Sobrescribir rangos/umbrales y periodos
-     _configuracion.umbralAlto_V        = umbralAlto_V;
-     _configuracion.umbralMedio_V       = umbralMedio_V;
-     _configuracion.corteVoltaje_V      = corteVoltaje_V;
-     _configuracion.fraccionHisteresis  = fraccionHisteresis;
-     _configuracion.periodoAlto_ms      = periodoAlto_ms;
-     _configuracion.periodoMedio_ms     = periodoMedio_ms;
-     _configuracion.periodoBajo_ms      = periodoBajo_ms;
- 
+
      // Inicialización de hardware/estado
      if (_configuracion.pinAdcBateria >= 0) {
        pinMode(_configuracion.pinAdcBateria, INPUT);

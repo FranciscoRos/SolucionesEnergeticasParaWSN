@@ -9,22 +9,22 @@
 
 // --- LIBRERÍAS ---
 #include <SPI.h>
-#include "UniversalRadioWSN.h" // Contiene las clases de RadioInterface
-#include <EEPROM.h>            // Librería para la memoria no volátil
+#include <EEPROM.h>
 
+#include <UniversalRadioWSN.h>
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 //#define USE_XBEE 
 #define USE_LORA 
 //#define USE_NRF 
 
 // ======================= CONFIGURACIÓN Y VARIABLES GLOBALES =======================
-// Pines para XBee (usando Serial2 en ESP32)
+// Pines para XBee 
 #define RXD2 16
 #define TXD2 17
 
-RadioInterface* radio;      // Puntero a la interfaz.
-uint32_t mensajesRecibidos; // Contador de mensajes recibidos
-String bufferReceptor = ""; // Buffer para acumular datos de LoRa/XBee
+RadioInterface* radio;      
+uint32_t mensajesRecibidos;
+String bufferReceptor = "";
 
 // --- Configuración específica por radio ---
 #if defined(USE_NRF)
@@ -92,7 +92,7 @@ void setup() {
 
   // --- LECTURA INICIAL DE LA EEPROM ---
   EEPROM.begin(sizeof(mensajesRecibidos));
-  EEPROM.get(3, mensajesRecibidos);       // Lee el contador guardado
+  EEPROM.get(3, mensajesRecibidos);       
   Serial.print("Contador de mensajes recibidos recuperado de EEPROM: ");
   Serial.println(mensajesRecibidos);
 }
@@ -101,7 +101,7 @@ void setup() {
 void loop() {
 
 #if defined(USE_NRF)
-  // --- LÓGICA PARA NRF24L01 (Paquetes discretos) ---
+  // --- LÓGICA PARA NRF24L01 ---
   if (radio->hayDatosDisponibles()) {
     String lineaCompleta = radio->leerComoString();
     lineaCompleta.trim();
@@ -113,7 +113,7 @@ void loop() {
       Serial.println(lineaCompleta);
 
       // --- GUARDADO EN EEPROM ---
-      EEPROM.get(3,, mensajesRecibidos);
+      EEPROM.put(5, mensajesRecibidos);
       EEPROM.commit();
 
       radio->enviar("ON");
@@ -126,7 +126,7 @@ void loop() {
     bufferReceptor += radio->leerComoString();
   }
 
-  // Busca un mensaje completo (terminado en '\n')
+  // Busca un mensaje completo 
   int indiceFinDeLinea = bufferReceptor.indexOf('\n');
 
   if (indiceFinDeLinea >= 0) {
@@ -141,8 +141,7 @@ void loop() {
       Serial.println(lineaCompleta);
 
       // --- GUARDADO EN EEPROM ---
-      // (Nota: Tu código original usaba la dirección 0 aquí y 1 para NRF. La he unificado a 1)
-      EEPROM.get(3,, mensajesRecibidos);
+      EEPROM.put(5, mensajesRecibidos);
       EEPROM.commit();
 
       radio->enviar("ON\n");

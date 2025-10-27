@@ -1,18 +1,18 @@
 /*
  * ==========================================================
- * ==    SKETCH EMISOR UNIVERSAL (LoRa + XBee + NRF24)      ==
+ * ==    SKETCH EMISOR UNIVERSAL (LoRa + XBee + NRF24)     ==
  * ==========================================================
  * Este sketch usa la interfaz "RadioInterface" para abstraer
- * el hardware de radio.
+ * el hardware de radio y emitir las mediciones de los sensores.
  *
  */
 
 // --- LIBRERÍAS DE LA APLICACIÓN ---
 #include <SPI.h>
-#include <UniversalRadioWSN.h>  // Contiene LoraRadio.h, XbeeRadio.h y NrfRadio.h
 #include <SoftwareSerial.h> 
-#include <EEPROM.h>         // Librería para la memoria no volátil
+#include <EEPROM.h>         
 
+#include <UniversalRadioWSN.h> 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 #define USE_LORA
 //#define USE_XBEE 
@@ -24,7 +24,7 @@
 #define ZMPT_PIN  A1
 #define VBAT_PIN  A2
 
-// 
+
 // ======================= OBJETOS Y VARIABLES GLOBALES =======================
 RadioInterface* radio;
 
@@ -39,7 +39,7 @@ uint32_t paquetesEnviados;
 #elif defined(USE_NRF)
   // Direcciones para NRF24L01 
   const byte nrfWriteAddress[6] = "00001";
-// Dirección del coordinador
+
   const byte nrfReadAddress[6] = "00002";
 #endif
 
@@ -101,7 +101,6 @@ void setup() {
 
   // --- LECTURA INICIAL DE LA EEPROM ---
   EEPROM.get(3, paquetesEnviados);
-// Lee el valor guardado en la dirección 
   Serial.print("Contador recuperado de EEPROM: ");
   Serial.println(paquetesEnviados);
 }
@@ -135,12 +134,10 @@ void loop() {
     #endif
     
     // --- GUARDADO EN EEPROM ---
-    EEPROM.get(3,, paquetesEnviados);
+    EEPROM.put(5, paquetesEnviados);
   }
 
   // Comprueba si hay comandos entrantes ("ON" / "OFF")
-  //La recepción de comandos es igual para todos los módulos
-  //No se implementó lógica porque no es necesaria pero está para el futuro
   if (radio->hayDatosDisponibles()) {
     String comando = radio->leerComoString();
     comando.trim();

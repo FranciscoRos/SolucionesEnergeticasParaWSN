@@ -7,19 +7,17 @@
  * 2. CodecWSN: Para codificación binaria eficiente del payload.
  * 3. AdaptiveTXWSN: Para calcular un período de envío VARIABLE según la batería.
  * 4. EnergyWSN: Para apagar periféricos y poner el MCU en sueño profundo (sleep).
- * 5. EEPROM: Para persistir el contador de paquetes.
- *
- * *** MODIFICADO: Añade verificación del éxito de wake/sleep de radio/sensores. ***
  */
 
 // --- LIBRERÍAS DE LA APLICACIÓN ---
 #include <SPI.h>
-#include <UniversalRadioWSN.h>
-#include <SoftwareSerial.h> // Para compatibilidad con XBee
-#include <EEPROM.h>         // Para memoria no volátil
-#include "EnergyWSN.h"      // Para gestión de energía (sleep)
-#include "AdaptiveTXWSN.h"   // Para gestión de tiempo adaptativo
-#include <CodecWSN.h>       // Librería para codificación binaria
+#include <SoftwareSerial.h> 
+#include <EEPROM.h>  
+
+#include <UniversalRadioWSN.h>       
+#include <EnergyWSN.h>      
+#include <AdaptiveTXWSN.h>   
+#include <CodecWSN.h>       
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 #define USE_LORA
@@ -27,7 +25,6 @@
 //#define USE_NRF 
 
 // ======================= 2. CONFIGURACIÓN GENERAL DE PINES =======================
-// --- Pines comunes ---
 #define RELAY_PIN         4   
 #define SENSOR_POWER_PIN  7    // Pin que alimenta a los sensores (controlado por EnergyWSN)
 #define ACS_PIN           A0  
@@ -43,7 +40,6 @@
 #endif
 
 // ======================= 3. CONFIGURACIÓN DE EEPROM =======================
-// Dirección de memoria para guardar el contador de paquetes
 #define EEPROM_COUNTER_ADDR 3 
 
 // ======================= 4. OBJETOS Y VARIABLES GLOBALES =======================
@@ -51,7 +47,7 @@ RadioInterface* radio;
 EnergyWSN energyManager;      // Gestiona el "cómo" dormir (hardware sleep)
 AdaptiveTXWSN txManager;      // Gestiona el "cuánto" dormir (tiempo adaptativo)
 AdaptiveTXWSN::Cfg configEnergia; // Configuración para el txManager (movido a global)
-uint32_t paquetesEnviados;    // Contador de paquetes (se recupera de EEPROM)
+uint32_t paquetesEnviados;    
 
 // --- Configuración específica por radio ---
 #if defined(USE_XBEE)
@@ -72,7 +68,7 @@ void setup() {
   Serial.println("\n--- INICIANDO EMISOR UNIVERSAL (ENERGY + ADAPTIVE + CODEC) ---");
 
   // --- Recuperar contador desde la EEPROM ---
-  EEPROM.get(EEPROM_COUNTER_ADDR, paquetesEnviados); // Usamos la dirección 3
+  EEPROM.get(EEPROM_COUNTER_ADDR, paquetesEnviados);
   Serial.print("Contador recuperado de EEPROM: ");
   Serial.println(paquetesEnviados);
 
@@ -96,7 +92,7 @@ void setup() {
   #elif defined(USE_XBEE)
     Serial.println("XBee");
     xbeeSerial.begin(9600);
-    // Usamos la inicialización con pines de sleep de EnergyWSN
+    
     radio = new XBeeRadio(xbeeSerial, 9600, XBEE_SLEEP_RQ_PIN, XBEE_ON_SLEEP_PIN);
   #elif defined(USE_NRF)
     Serial.println("NRF24L01");
@@ -122,38 +118,26 @@ void setup() {
   // --- CONFIGURACIÓN DEL GESTOR DE TIEMPO ADAPTATIVO (AdaptiveTXWSN) ---
   Serial.println("Configurando gestor de tiempo adaptativo...");
   
-  // -- Configuración específica de la placa (Arduino Uno/Nano 5V) --
   configEnergia.pinAdcBateria       = VBAT_PIN;
   
-  // --- INICIO DE LA MODIFICACIÓN PARA TESTING (FACTOR 1.0) ---
-  // (Para probar sin resistencias, leyendo el voltaje directo del pin)
-  configEnergia.voltajeReferenciaAdc = 5.0f; // Mide tu pin 5V real (ej. 4.8V)
+  configEnergia.voltajeReferenciaAdc = 5.0f; 
   configEnergia.divisorRArriba_k = 0.0f;
-  configEnergia.divisorRAbajo_k  = 0.1f;     // Factor 1.0 para leer voltaje directo
-  // --- FIN DE LA MODIFICACIÓN PARA TESTING ---
+  configEnergia.divisorRAbajo_k  = 0.1f;     
   
-  // -- Umbrales y períodos (AJUSTA ESTO PARA TU BATERÍA/PRUEBAS) --
-  configEnergia.umbralAlto_V   = 4.00f;   // Umbral para considerar batería alta
-  configEnergia.umbralMedio_V  = 3.3f;   // Umbral para considerar batería media
-  configEnergia.corteVoltaje_V = 2.0f;   // Voltaje de seguridad
-  configEnergia.periodoAlto_ms = 3000;  // Enviar cada 3 seg con batería llena
-  configEnergia.periodoMedio_ms= 5000;  // Enviar cada 5 seg con batería media
-  configEnergia.periodoBajo_ms = 12000; // Enviar cada 12 seg con batería baja
+  configEnergia.umbralAlto_V   = 4.00f;   
+  configEnergia.umbralMedio_V  = 3.3f;   
+  configEnergia.corteVoltaje_V = 2.0f;   
+  configEnergia.periodoAlto_ms = 3000;  
+  configEnergia.periodoMedio_ms= 5000;    
+  configEnergia.periodoBajo_ms = 12000; 
 
   // --- INICIALIZACIÓN DEL GESTOR DE TIEMPO ---
-  txManager.begin(configEnergia, 
-                  configEnergia.umbralAlto_V, 
-                  configEnergia.umbralMedio_V, 
-                  configEnergia.corteVoltaje_V, 
-                  configEnergia.fraccionHisteresis, 
-                  configEnergia.periodoAlto_ms, 
-                  configEnergia.periodoMedio_ms, 
-                  configEnergia.periodoBajo_ms);
+  txManager.begin(configEnergia);
 
   // --- CONFIGURACIÓN DEL GESTOR DE ENERGÍA (EnergyWSN) ---
   EnergyWSN::Cfg energyConfig;
   energyConfig.pins.pwrSens = SENSOR_POWER_PIN;
-  energyConfig.pins.vbatSense = -1; // -1 porque AdaptiveTXWSN ya lo está manejando
+  energyConfig.pins.vbatSense = -1; // No usado (AdaptiveTXWSN lo gestiona)
   energyConfig.bootSleep = false;
   
   energyManager.begin(energyConfig, radio);
@@ -171,12 +155,11 @@ void loop() {
     Serial.println("Radio despertada OK.");
   } else {
     Serial.println("¡¡FALLO al despertar la radio!!");
-    // Podrías añadir lógica aquí para reintentar o abortar
   }
   
-  energyManager.powerSensors(true); // Encender sensores
+  energyManager.powerSensors(true); 
   Serial.println("Sensores energizados (comando enviado).");
-  //delay(200); // Opcional: Espera de estabilización
+  //delay(200); //estabilización
 
   // --- 2. LEER SENSORES Y ACTUALIZAR ESTADO ADAPTATIVO ---
   float voltage   = leerVoltajeZMPT();
@@ -184,16 +167,15 @@ void loop() {
   
   // Llamamos a tick() para que lea VBAT_PIN y actualice su estado interno
   txManager.tick(); 
-  // Ahora obtenemos el voltaje que acaba de leer
   float vbat = txManager.lastVolts();
   paquetesEnviados++;
 
   // --- 3. CONSTRUIR PAQUETE BINARIO (CODECWSN) ---
   Packet miPaquete;
   miPaquete.id = paquetesEnviados;
-  miPaquete.voltaje = (int16_t)(voltage * 100);     // Guarda 120.55V como 12055
-  miPaquete.corriente = (int16_t)(corriente * 1000); // Guarda 1.25A como 1250 (mA)
-  miPaquete.vbat = (uint16_t)(vbat * 100);       // Guarda 4.15V como 415
+  miPaquete.voltaje = (int16_t)(voltage * 100);     
+  miPaquete.corriente = (int16_t)(corriente * 1000); 
+  miPaquete.vbat = (uint16_t)(vbat * 100);       
 
   // --- 4. CODIFICAR Y ENVIAR FRAME BINARIO ---
   uint8_t frameBuffer[WSNFrame::FRAME_SIZE];
@@ -263,7 +245,7 @@ void loop() {
 
   if (!comandoRecibido) Serial.println("Ninguno.");
 
-  // --- 7. APAGAR PERIFÉRICOS (CON VERIFICACIÓN) ---
+  // --- 7. APAGAR PERIFÉRICOS ---
   energyManager.powerSensors(false); // Apagar sensores
   Serial.println("Sensores apagados (comando enviado).");
 
@@ -278,7 +260,6 @@ void loop() {
   // Obtenemos el próximo período de sueño desde AdaptiveTXWSN
   uint32_t sleepDuration_ms = txManager.currentPeriod(); 
   
-  // Imprimimos el estado para depuración
   int currentLevel = (int)txManager.level();
   String currentLevelStr;
   switch (currentLevel) {
@@ -292,21 +273,18 @@ void loop() {
   Serial.print("Proximo envio en: " + String(sleepDuration_ms / 1000.0, 0) + " seg.");
   Serial.println();
   
-  delay(100); // Da tiempo al Serial Monitor para imprimir
+  delay(100); 
   
   energyManager.sleepFor_ms(sleepDuration_ms); // Duerme por el tiempo variable
 }
 
 // ======================= 7. FUNCIONES DE LECTURA DE SENSORES =======================
-// (NOTA: leerVoltajeBateria() se elimina porque AdaptiveTXWSN lo hace automáticamente)
-
 float leerVoltajeZMPT() {
   int lectura = analogRead(ZMPT_PIN);
-  return ((lectura * 5.0) / 1023.0) * 50.0; // Asume Arduino 5V 10-bit
+  return ((lectura * 5.0) / 1023.0) * 50.0; 
 }
 
 float leerCorrienteACS() {
   int lectura = analogRead(ACS_PIN);
-  float volt = (lectura * 5.0) / 1023.0; // Asume Arduino 5V 10-bit
-  return (volt - 2.5) / 0.066; // Asume sensor ACS712 30A (66mV/A)
-}
+  float volt = (lectura * 5.0) / 1023.0; 
+  return (volt - 2.5) / 0.066; 

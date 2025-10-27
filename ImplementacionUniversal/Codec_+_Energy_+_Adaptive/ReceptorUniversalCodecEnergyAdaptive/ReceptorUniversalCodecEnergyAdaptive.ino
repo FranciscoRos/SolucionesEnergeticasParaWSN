@@ -6,28 +6,27 @@
  * robustos recibidos por LoRa, XBee o NRF.
  *
  * Es compatible con CUALQUIER emisor que envíe paquetes CodecWSN,
- * pero este se usará en el que implementa las 3 librerías:
+ * pero este se usará en el que implementa las 3 librerías
  */
 
 // --- LIBRERÍAS ---
 #include <SPI.h>
-#include "UniversalRadioWSN.h"
-#include <CodecWSN.h> // Librería para decodificación binaria
-#include <EEPROM.h>   // Librería para memoria no volátil
+#include <EEPROM.h>   
+
+#include <UniversalRadioWSN.h>
+#include <CodecWSN.h> 
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 #define USE_LORA 
 //#define USE_XBEE 
-//#define USE_NRF // Asegúrate que coincida con el Emisor
+//#define USE_NRF 
 
 // ======================= 2. CONFIGURACIÓN GENERAL DE PINES =======================
-// Pines para XBee (usando Serial2 en ESP32)
 #define RXD2 16
 #define TXD2 17
 
 // ======================= 3. CONFIGURACIÓN DE EEPROM =======================
-// Dirección de memoria para guardar el contador de mensajes
-#define EEPROM_COUNTER_ADDR 4 // Se usa 4 para no colisionar con el 3 del Emisor
+#define EEPROM_COUNTER_ADDR 4 
 
 // ======================= 4. OBJETOS Y VARIABLES GLOBALES =======================
 RadioInterface* radio;     // Puntero a la interfaz.
@@ -36,14 +35,13 @@ uint32_t mensajesRecibidos;
 
 // --- Configuración específica por radio ---
 #if defined(USE_NRF)
-  // Direcciones para NRF24L01 (Invertidas respecto al emisor)
-  const byte nrfReadAddress[6] = "00001"; // Dirección de lectura (la de escritura del emisor)
-  const byte nrfWriteAddress[6] = "00002"; // Dirección de escritura (la de lectura del emisor)
+  const byte nrfReadAddress[6] = "00001"; // Dirección de lectura 
+  const byte nrfWriteAddress[6] = "00002"; // Dirección de escritura 
 #endif
 
 // ======================= 5. SETUP =======================
 void setup() {
-  Serial.begin(115200); // Se usa 115200 para el receptor (ESP32/PC)
+  Serial.begin(115200);
   while (!Serial);
   Serial.println("\n--- RECEPTOR UNIVERSAL INICIADO (MODO BINARIO)  (ENERGY + ADAPTIVE + CODEC) ---");
 
@@ -71,8 +69,8 @@ void setup() {
   #elif defined(USE_NRF)
     Serial.println("NRF24L01");
     NrfConfig configNrf;
-    configNrf.cePin = 4;  // Pin CE en ESP32
-    configNrf.csnPin = 5; // Pin CSN en ESP32
+    configNrf.cePin = 4;  
+    configNrf.csnPin = 5;
     configNrf.writeAddress = nrfWriteAddress; // Para responder "ON"
     configNrf.readAddress = nrfReadAddress;   // Para recibir datos
     configNrf.channel = 108;
@@ -87,11 +85,11 @@ void setup() {
     while (true);
   }
   
-  miParser.reset(); // Resetea el parser al inicio
+  miParser.reset(); 
   Serial.println("Módulo de radio inicializado. Esperando datos binarios...");
 
   // --- LECTURA INICIAL DE LA EEPROM ---
-  EEPROM.begin(sizeof(mensajesRecibidos)); // Necesario para ESP32
+  EEPROM.begin(sizeof(mensajesRecibidos)); 
   EEPROM.get(EEPROM_COUNTER_ADDR, mensajesRecibidos);
   Serial.print("Contador de mensajes recuperado de EEPROM: ");
   Serial.println(mensajesRecibidos);
@@ -109,15 +107,14 @@ void loop() {
     for (size_t i = 0; i < bytesLeidos; i++) {
       Packet paqueteRecibido;
       
-      // feed() devuelve true solo cuando ha recibido un frame completo y válido
       if (WSNFrame::feed(miParser, bufferRecepcion[i], paqueteRecibido)) {
         
         mensajesRecibidos++;
 
         // --- GUARDADO EN EEPROM ---
         EEPROM.put(EEPROM_COUNTER_ADDR, mensajesRecibidos);
-        EEPROM.commit(); // Asegura la escritura en ESP32
-
+        EEPROM.commit(); 
+        
         // --- IMPRESIÓN EN MONITOR SERIAL ---
         Serial.print("Mensaje #" + String(mensajesRecibidos) + " Recibido -> ");
         Serial.print("ID: "); Serial.print(paqueteRecibido.id);
@@ -126,11 +123,10 @@ void loop() {
         Serial.print(" VBat: ");
         Serial.println(paqueteRecibido.vbat / 100.0, 2);
 
-        // Opcional: Enviar una confirmación ("ON") de vuelta
         #if defined(USE_NRF)
-          radio->enviar("ON"); // NRF envía sin '\n'
+          radio->enviar("ON"); 
         #else
-          radio->enviar("ON\n"); // LoRa/XBee usan '\n'
+          radio->enviar("ON\n"); 
         #endif
       }
     }

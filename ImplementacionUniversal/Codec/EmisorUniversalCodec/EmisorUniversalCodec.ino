@@ -3,18 +3,19 @@
  * ==      SKETCH EMISOR UNIVERSAL (MODO BINARIO con CodecWSN)          ==
  * =======================================================================
  * Este sketch usa la librería CodecWSN para enviar datos de sensores
- * de forma eficiente y robusta. Es compatible con LoRa y XBee.
+ * de forma eficiente y robusta.
  */
 
 // --- LIBRERÍAS DE LA APLICACIÓN ---
 #include <SPI.h>
+#include <EEPROM.h>   
+#include <SoftwareSerial.h> 
+
 #include <UniversalRadioWSN.h>
-#include <SoftwareSerial.h> // Para compatibilidad con XBee
-#include <CodecWSN.h>       // Librería para codificación binaria
-#include <EEPROM.h>         // Librería para memoria no volátil
+#include <CodecWSN.h>       
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-//define USE_LORA
+//#define USE_LORA
 #define USE_XBEE 
 //#define USE_NRF
 
@@ -115,9 +116,9 @@ void loop() {
     // 2. Crear un paquete de datos binario
     Packet miPaquete;
     miPaquete.id = paquetesEnviados;
-    miPaquete.voltaje = (int16_t)(voltage * 100);     // Guarda 120.55V como 12055
-    miPaquete.corriente = (int16_t)(corriente * 1000); // Guarda 1.25A como 1250 (mA)
-    miPaquete.vbat = (uint16_t)(vbat * 100);       // Guarda 4.15V como 415
+    miPaquete.voltaje = (int16_t)(voltage * 100);     
+    miPaquete.corriente = (int16_t)(corriente * 1000);
+    miPaquete.vbat = (uint16_t)(vbat * 100);
 
     // 3. Codificar y enviar el frame binario
     uint8_t frameBuffer[WSNFrame::FRAME_SIZE];

@@ -1,16 +1,15 @@
 /*
  * ======================================================================
- * ==      SKETCH RECEPTOR UNIVERSAL ENERGY(XBee + LoRa + NRF24)            ==
+ * ==       SKETCH RECEPTOR UNIVERSAL (MODO STRING / Energy)           ==
  * ======================================================================
- * Este sketch es la versión básica de un receptor, compatible con
- * todos los radios definidos en UniversalRadioWSN, se usará para utilizar en el Energy.
- *
+ * Este sketch es un receptor básico (modo String) compatible
+ * con el emisor Energy 
  */
 
 // --- LIBRERÍAS ---
 #include <SPI.h>
-#include "UniversalRadioWSN.h" // Contiene las clases de RadioInterface
-#include <EEPROM.h>            // Librería para la memoria no volátil
+#include "UniversalRadioWSN.h"
+#include <EEPROM.h>
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 //#define USE_XBEE 
@@ -18,19 +17,18 @@
 //#define USE_NRF 
 
 // ======================= CONFIGURACIÓN Y VARIABLES GLOBALES =======================
-// Pines para XBee (usando Serial2 en ESP32)
 #define RXD2 16
 #define TXD2 17
 
 RadioInterface* radio;      // Puntero a la interfaz.
-uint32_t mensajesRecibidos; // Contador de mensajes recibidos
-String bufferReceptor = ""; // Buffer para acumular datos de LoRa/XBee
+uint32_t mensajesRecibidos;
+String bufferReceptor = ""; // Buffer para LoRa/XBee
 
 // --- Configuración específica por radio ---
 #if defined(USE_NRF)
   // Direcciones para NRF24L01
-  const byte nrfReadAddress[6] = "00001"; // Dirección de lectura
-  const byte nrfWriteAddress[6] = "00002"; // Dirección de escritura (respuesta)
+  const byte nrfReadAddress[6] = "00001"; 
+  const byte nrfWriteAddress[6] = "00002"; 
 #endif
 
 // ======================= SETUP =======================
@@ -38,7 +36,7 @@ void setup() {
   Serial.begin(115200);
   while (!Serial);
 
-  Serial.println("\n--- RECEPTOR UNIVERSAL INICIADO ---");
+  Serial.println("\n--- RECEPTOR UNIVERSAL INICIADO (MODO STRING Energy) ---");
 
   // --- INICIALIZACIÓN DEL MÓDULO DE RADIO ---
   Serial.print("Configurando radio: ");
@@ -59,7 +57,6 @@ void setup() {
     configLora.codingRate      = 5;
     configLora.syncWord        = 0xF3;
     configLora.txPower         = 20; 
-    
     configLora.csPin           = 5;
     configLora.irqPin          = 2;
     configLora.resetPin        = -1;
@@ -74,9 +71,8 @@ void setup() {
     configNrf.csnPin = 5;
     configNrf.writeAddress = nrfWriteAddress;
     configNrf.readAddress = nrfReadAddress;
-    configNrf.channel = 108;       
-    
-    configNrf.dataRate = 250; // Data Rate 250KBPS
+    configNrf.channel = 108;      
+    configNrf.dataRate = 250; // 250KBPS
     configNrf.paLevel = 0;    // Potencia mínima
     
     radio = new NrfRadio(configNrf);
@@ -92,8 +88,8 @@ void setup() {
 
   // --- LECTURA INICIAL DE LA EEPROM ---
   EEPROM.begin(sizeof(mensajesRecibidos));
-  EEPROM.get(3, mensajesRecibidos);       // Lee el contador guardado
-  Serial.print("Contador de mensajes recibidos recuperado de EEPROM: ");
+  EEPROM.get(3, mensajesRecibidos);
+  Serial.print("Contador de mensajes recuperado de EEPROM: ");
   Serial.println(mensajesRecibidos);
 }
 
@@ -113,7 +109,7 @@ void loop() {
       Serial.println(lineaCompleta);
 
       // --- GUARDADO EN EEPROM ---
-      EEPROM.get(3,, mensajesRecibidos);
+      EEPROM.put(3, mensajesRecibidos); // CORREGIDO: 'put' en lugar de 'get'
       EEPROM.commit();
 
       radio->enviar("ON");
@@ -141,8 +137,7 @@ void loop() {
       Serial.println(lineaCompleta);
 
       // --- GUARDADO EN EEPROM ---
-      // (Nota: Tu código original usaba la dirección 0 aquí y 1 para NRF. La he unificado a 1)
-      EEPROM.get(3,, mensajesRecibidos);
+      EEPROM.put(3, mensajesRecibidos); 
       EEPROM.commit();
 
       radio->enviar("ON\n");

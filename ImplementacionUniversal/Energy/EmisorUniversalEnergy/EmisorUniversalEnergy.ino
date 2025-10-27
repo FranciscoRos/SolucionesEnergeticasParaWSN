@@ -1,19 +1,18 @@
 /*
  * ==========================================================
- * ==      SKETCH EMISOR UNIVERSAL (LoRa + XBee + NRF24)     ==
- * ==            MODIFICADO CON GESTIÓN DE ENERGÍA           ==
+ * ==    SKETCH EMISOR UNIVERSAL (LoRa + XBee + NRF24)     ==
+ * ==          MODIFICADO CON GESTIÓN DE ENERGÍA           ==
  * ==========================================================
- * Este sketch usa la interfaz "RadioInterface" para abstraer
- * el hardware de radio e implementa ciclos de sueño (sleep)
- * usando la librería EnergyWSN.
+ * Este sketch usa UniversalRadioWSN para enviar datos (String)
+ * y EnergyWSN para implementar ciclos de sueño (sleep).
  */
 
 // --- LIBRERÍAS DE LA APLICACIÓN ---
 #include <SPI.h>
 #include <UniversalRadioWSN.h>
-#include <SoftwareSerial.h> // Para compatibilidad con XBee
-#include <EEPROM.h>         // Para memoria no volátil
-#include "EnergyWSN.h"      // Para gestión de energía
+#include <SoftwareSerial.h>
+#include <EEPROM.h>
+#include "EnergyWSN.h"
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 //#define USE_LORA
@@ -21,7 +20,6 @@
 #define USE_NRF 
 
 // ======================= 2. CONFIGURACIÓN GENERAL DE PINES =======================
-// --- Pines comunes ---
 #define RELAY_PIN         4
 #define SENSOR_POWER_PIN  7     // Pin que alimenta a los sensores
 #define ACS_PIN           A0
@@ -40,7 +38,7 @@
 RadioInterface* radio;
 EnergyWSN energyManager;
 uint32_t paquetesEnviados;
-const unsigned long SLEEP_INTERVAL_MS = ( 6 * 1000); // 6 segundos
+const unsigned long SLEEP_INTERVAL_MS = ( 6 * 1000);
 
 // --- Configuración específica por radio ---
 #if defined(USE_XBEE)
@@ -126,7 +124,7 @@ void loop() {
   energyManager.wakeRadio();
   energyManager.powerSensors(true);
   Serial.println("Radio y sensores energizados.");
-  //delay(200); // Opcional: Espera de estabilización
+  //delay(200); // Espera de estabilización
 
   // 2. Leer sensores
   float voltage = leerVoltajeZMPT();
@@ -134,7 +132,7 @@ void loop() {
   float vbat = leerVoltajeBateria();
   paquetesEnviados++;
 
-  // 3. Construir y enviar payload
+  // 3. Construir y enviar payload (String)
   String dataPayload = "N:" + String(paquetesEnviados) +
                        " V:" + String(voltage, 2) +
                        " I:" + String(corriente, 2) +
@@ -144,17 +142,15 @@ void loop() {
   Serial.println(dataPayload);
   
   #if defined(USE_NRF)
-    // NRF envía paquetes puros (máx 32 bytes)
     radio->enviar(dataPayload);
   #else
-    // LoRa/XBee usan delimitador
     radio->enviar(dataPayload + "\n");
   #endif
     
-  // 4. Guardar contador en EEPROM
-  EEPROM.get(3,, paquetesEnviados);
+  // 5. Guardar contador en EEPROM (se omite el 4 para alinear con el ejemplo)
+  EEPROM.put(2, paquetesEnviados);
   
-  // 5. Escuchar por comandos entrantes (ventana de 500ms)
+  // 6. Escuchar por comandos entrantes (ventana de 500ms)
   Serial.print("Escuchando comandos por 500ms... ");
   long tiempoInicioEscucha = millis();
   bool comandoRecibido = false;
@@ -174,14 +170,14 @@ void loop() {
   }
   if (!comandoRecibido) Serial.println("Ninguno.");
 
-  // 6. Apagar periféricos
+  // 7. Apagar periféricos
   energyManager.powerSensors(false);
   energyManager.sleepRadio();
   Serial.println("Radio y sensores dormidos.");
 
-  // 7. Poner el microcontrolador a dormir
+  // 8. Poner el microcontrolador a dormir
   Serial.print("Durmiendo MCU por "); Serial.print(SLEEP_INTERVAL_MS / 1000); Serial.println(" segundos...");
-  delay(100); // Da tiempo al Serial Monitor para imprimir
+  delay(100); 
   
   energyManager.sleepFor_ms(SLEEP_INTERVAL_MS);
 }

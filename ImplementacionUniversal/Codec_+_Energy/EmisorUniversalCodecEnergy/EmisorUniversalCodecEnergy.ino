@@ -8,11 +8,12 @@
 
 // --- LIBRERÍAS DE LA APLICACIÓN ---
 #include <SPI.h>
+#include <SoftwareSerial.h>
+#include <EEPROM.h>
+
+#include <EnergyWSN.h>
+#include <CodecWSN.h>
 #include <UniversalRadioWSN.h>
-#include <SoftwareSerial.h> // Para compatibilidad con XBee
-#include <EEPROM.h>         // Para memoria no volátil
-#include "EnergyWSN.h"      // Para gestión de energía
-#include <CodecWSN.h>       // Librería para codificación binaria
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 #define USE_LORA
@@ -20,7 +21,6 @@
 //#define USE_NRF 
 
 // ======================= 2. CONFIGURACIÓN GENERAL DE PINES =======================
-// --- Pines comunes ---
 #define RELAY_PIN         4
 #define SENSOR_POWER_PIN  7     // Pin que alimenta a los sensores
 #define ACS_PIN           A0
@@ -39,7 +39,7 @@
 RadioInterface* radio;
 EnergyWSN energyManager;
 uint32_t paquetesEnviados;
-const unsigned long SLEEP_INTERVAL_MS = ( 6 * 1000); // 6 segundos
+const unsigned long SLEEP_INTERVAL_MS = ( 6 * 1000); 
 
 // --- Configuración específica por radio ---
 #if defined(USE_XBEE)
@@ -124,7 +124,7 @@ void loop() {
   energyManager.wakeRadio();
   energyManager.powerSensors(true);
   Serial.println("Radio y sensores energizados.");
-  //delay(200); // Opcional: Espera de estabilización
+  //delay(200); // Espera de estabilización
 
   // 2. Leer sensores
   float voltage = leerVoltajeZMPT();
@@ -135,9 +135,9 @@ void loop() {
   // 3. Construir paquete de datos binario
   Packet miPaquete;
   miPaquete.id = paquetesEnviados;
-  miPaquete.voltaje = (int16_t)(voltage * 100);     // Guarda 120.55V como 12055
-  miPaquete.corriente = (int16_t)(corriente * 1000); // Guarda 1.25A como 1250 (mA)
-  miPaquete.vbat = (uint16_t)(vbat * 100);         // Guarda 4.15V como 415
+  miPaquete.voltaje = (int16_t)(voltage * 100);     
+  miPaquete.corriente = (int16_t)(corriente * 1000); 
+  miPaquete.vbat = (uint16_t)(vbat * 100);         
 
   // 4. Codificar y enviar el frame binario
   uint8_t frameBuffer[WSNFrame::FRAME_SIZE];

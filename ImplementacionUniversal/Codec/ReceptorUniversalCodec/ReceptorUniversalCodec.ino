@@ -8,9 +8,10 @@
 
 // --- LIBRERÍAS ---
 #include <SPI.h>
-#include "UniversalRadioWSN.h"
-#include <CodecWSN.h> // Librería para decodificación binaria
-#include <EEPROM.h>   // Librería para memoria no volátil
+#include <EEPROM.h>
+
+#include <UniversalRadioWSN.h>
+#include <CodecWSN.h>
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 #define USE_XBEE 
@@ -22,8 +23,8 @@
 #define RXD2 16
 #define TXD2 17
 
-RadioInterface* radio;     // Puntero a la interfaz.
-WSNFrame::Parser miParser; // Objeto para decodificar frames.
+RadioInterface* radio;     
+WSNFrame::Parser miParser; 
 uint32_t mensajesRecibidos;
 
 // --- Configuración específica por radio ---
@@ -111,7 +112,6 @@ void loop() {
 
         // --- GUARDADO EN EEPROM ---
         EEPROM.get(3,, mensajesRecibidos);
-        EEPROM.commit(); // Asegura la escritura en ESP32
 
         // --- IMPRESIÓN EN MONITOR SERIAL ---
         Serial.print("Mensaje #" + String(mensajesRecibidos) + " Recibido -> ");
@@ -121,7 +121,6 @@ void loop() {
         Serial.print(" VBat: ");
         Serial.println(paqueteRecibido.vbat / 100.0, 2);
 
-        // Opcional: Enviar una confirmación ("ON") de vuelta
         radio->enviar("ON\n");
       }
     }

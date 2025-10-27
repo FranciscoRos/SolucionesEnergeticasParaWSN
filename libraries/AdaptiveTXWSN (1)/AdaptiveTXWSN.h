@@ -2,9 +2,12 @@
  * @file AdaptiveTXWSN.h
  * @brief Define la clase AdaptiveTXWSN para la transmisión adaptativa en WSN.
  *
- * Esta librería permite a un nodo sensor (ej. Arduino) ajustar su
+ * Esta librería permite a un nodo sensor ajustar su
  * período de transmisión basado en el voltaje de su batería,
  * ahorrando energía cuando el nivel es bajo.
+ * Autores: Francisco Rosales, Omar Tox, 2025-10.
+ * Modificado para usar RadioInterface.
+ * Versión 1.3
  */
 
  #pragma once

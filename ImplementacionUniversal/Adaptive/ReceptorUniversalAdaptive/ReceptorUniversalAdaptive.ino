@@ -1,9 +1,9 @@
 /*
  * ==========================================================
- * ==          SKETCH RECEPTOR UNIVERSAL (XBEE)            ==
+ * ==  SKETCH RECEPTOR UNIVERSAL (LoRa + XBee + NRF24L01)  ==
  * ==========================================================
- * Este sketch está configurado para usar un módulo XBee
- * en un ESP32 a través del puerto Serial2 (RX2=16, TX2=17).
+ * Este sketch está configurado para usar (LoRa + XBee + NRF24L01)
+ * en un ESP32 para recibir comunicación.
  */
 
 // --- LIBRERÍAS ---
@@ -13,16 +13,16 @@
 
 // --- SELECCIÓN DEL MÓDULO DE RADIO ---
 //#define USE_XBEE
-//#define USE_LORA
-#define USE_NRF
+#define USE_LORA
+//#define USE_NRF
 
 // ======================= CONFIGURACIÓN Y VARIABLES GLOBALES =======================
-// Pines para XBee (usando Serial2 en ESP32)
+
 
 
 // --- OBJETOS Y VARIABLES GLOBALES ---
 RadioInterface* radio;
-String bufferReceptor = ""; // Buffer para acumular datos de LoRa/XBee
+String bufferReceptor = ""; // Buffer para acumular datos recibidos
 uint32_t mensajesRecibidos = 0;
 
 #if defined(USE_NRF)
@@ -34,7 +34,6 @@ uint32_t mensajesRecibidos = 0;
 #endif
 // --- SETUP ---
 void setup() {  
-  // Usar 115200 para la comunicación con la PC
   Serial.begin(115200);
   while (!Serial);
   Serial.println("\n--- INICIANDO RECEPTOR UNIVERSAL (XBEE) ---");
@@ -50,7 +49,6 @@ void setup() {
     Serial.println("LoRa");
     SPI.begin();
 
-    //Configuraciones de Lora
     LoRaConfig configLora;
     configLora.frequency       = 410E6;
     configLora.spreadingFactor = 7;

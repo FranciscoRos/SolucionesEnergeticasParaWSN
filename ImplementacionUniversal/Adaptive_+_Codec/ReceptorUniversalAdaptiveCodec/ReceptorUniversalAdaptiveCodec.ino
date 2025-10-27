@@ -8,17 +8,17 @@
 
 // --- LIBRERÍAS ---
 #include <SPI.h>
-#include "UniversalRadioWSN.h"
-#include <CodecWSN.h> // Librería para decodificación binaria
-#include <EEPROM.h>   // Librería para memoria no volátil
+#include <UniversalRadioWSN.h>
+#include <CodecWSN.h> 
+#include <EEPROM.h>   
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-#define USE_XBEE 
-//#define USE_LORA 
+//#define USE_XBEE 
+#define USE_LORA 
 //#define USE_NRF
 
 // ======================= CONFIGURACIÓN Y VARIABLES GLOBALES =======================
-// Pines para XBee (usando Serial2 en ESP32)
+// Pines para XBee 
 #define RXD2 16
 #define TXD2 17
 
@@ -82,7 +82,7 @@ void setup() {
     while (true);
   }
   
-  miParser.reset(); // Resetea el parser al inicio
+  miParser.reset(); 
   Serial.println("Módulo de radio inicializado. Esperando datos binarios...");
   
   // --- LECTURA INICIAL DE LA EEPROM ---
@@ -111,7 +111,7 @@ void loop() {
 
         // --- GUARDADO EN EEPROM ---
         EEPROM.put(4, mensajesRecibidos);
-        EEPROM.commit(); // Asegura la escritura en ESP32
+        EEPROM.commit(); 
 
         // --- IMPRESIÓN EN MONITOR SERIAL ---
         Serial.print("Mensaje #" + String(mensajesRecibidos) + " Recibido -> ");

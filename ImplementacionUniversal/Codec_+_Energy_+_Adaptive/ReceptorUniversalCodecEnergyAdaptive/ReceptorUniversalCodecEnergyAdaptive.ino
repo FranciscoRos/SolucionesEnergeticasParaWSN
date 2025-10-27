@@ -3,7 +3,10 @@
  * ==      SKETCH RECEPTOR UNIVERSAL (MODO BINARIO con CodecWSN)       ==
  * ======================================================================
  * Este sketch usa el Parser de CodecWSN para decodificar frames binarios
- * robustos recibidos por LoRa o XBee.
+ * robustos recibidos por LoRa, XBee o NRF.
+ *
+ * Es compatible con CUALQUIER emisor que envíe paquetes CodecWSN,
+ * pero este se usará en el que implementa las 3 librerías:
  */
 
 // --- LIBRERÍAS ---
@@ -13,15 +16,20 @@
 #include <EEPROM.h>   // Librería para memoria no volátil
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-//#define USE_XBEE 
 #define USE_LORA 
+//#define USE_XBEE 
 //#define USE_NRF // Asegúrate que coincida con el Emisor
 
-// ======================= CONFIGURACIÓN Y VARIABLES GLOBALES =======================
+// ======================= 2. CONFIGURACIÓN GENERAL DE PINES =======================
 // Pines para XBee (usando Serial2 en ESP32)
 #define RXD2 16
 #define TXD2 17
 
+// ======================= 3. CONFIGURACIÓN DE EEPROM =======================
+// Dirección de memoria para guardar el contador de mensajes
+#define EEPROM_COUNTER_ADDR 4 // Se usa 4 para no colisionar con el 3 del Emisor
+
+// ======================= 4. OBJETOS Y VARIABLES GLOBALES =======================
 RadioInterface* radio;     // Puntero a la interfaz.
 WSNFrame::Parser miParser; // Objeto para decodificar frames.
 uint32_t mensajesRecibidos;
@@ -29,15 +37,15 @@ uint32_t mensajesRecibidos;
 // --- Configuración específica por radio ---
 #if defined(USE_NRF)
   // Direcciones para NRF24L01 (Invertidas respecto al emisor)
-  const byte nrfReadAddress[6] = "00001";   // Dirección de lectura (la de escritura del emisor)
+  const byte nrfReadAddress[6] = "00001"; // Dirección de lectura (la de escritura del emisor)
   const byte nrfWriteAddress[6] = "00002"; // Dirección de escritura (la de lectura del emisor)
 #endif
 
-// ======================= SETUP =======================
+// ======================= 5. SETUP =======================
 void setup() {
   Serial.begin(115200); // Se usa 115200 para el receptor (ESP32/PC)
   while (!Serial);
-  Serial.println("\n--- RECEPTOR UNIVERSAL INICIADO (MODO BINARIO receptor Energy) ---");
+  Serial.println("\n--- RECEPTOR UNIVERSAL INICIADO (MODO BINARIO)  (ENERGY + ADAPTIVE + CODEC) ---");
 
   // --- INICIALIZACIÓN DEL MÓDULO DE RADIO ---
   Serial.print("Configurando radio: ");
@@ -63,7 +71,7 @@ void setup() {
   #elif defined(USE_NRF)
     Serial.println("NRF24L01");
     NrfConfig configNrf;
-    configNrf.cePin = 4; // Pin CE en ESP32
+    configNrf.cePin = 4;  // Pin CE en ESP32
     configNrf.csnPin = 5; // Pin CSN en ESP32
     configNrf.writeAddress = nrfWriteAddress; // Para responder "ON"
     configNrf.readAddress = nrfReadAddress;   // Para recibir datos
@@ -81,21 +89,20 @@ void setup() {
   
   miParser.reset(); // Resetea el parser al inicio
   Serial.println("Módulo de radio inicializado. Esperando datos binarios...");
-  
+
   // --- LECTURA INICIAL DE LA EEPROM ---
-  // (Adaptado para ESP32, asumiendo que es el receptor)
-  EEPROM.begin(sizeof(mensajesRecibidos));
-  EEPROM.get(3, mensajesRecibidos);
+  EEPROM.begin(sizeof(mensajesRecibidos)); // Necesario para ESP32
+  EEPROM.get(EEPROM_COUNTER_ADDR, mensajesRecibidos);
   Serial.print("Contador de mensajes recuperado de EEPROM: ");
   Serial.println(mensajesRecibidos);
 }
 
-// ======================= LOOP =======================
+// ======================= 6. LOOP =======================
 void loop() {
   if (radio->hayDatosDisponibles()) {
     
     // 1. Leer los bytes crudos de la radio
-    uint8_t bufferRecepcion[64]; // Buffer amplio
+    uint8_t bufferRecepcion[64];
     size_t bytesLeidos = radio->leer(bufferRecepcion, 64);
 
     // 2. Alimentar cada byte, uno por uno, al parser
@@ -106,9 +113,9 @@ void loop() {
       if (WSNFrame::feed(miParser, bufferRecepcion[i], paqueteRecibido)) {
         
         mensajesRecibidos++;
-        
+
         // --- GUARDADO EN EEPROM ---
-        EEPROM.put(3, mensajesRecibidos);
+        EEPROM.put(EEPROM_COUNTER_ADDR, mensajesRecibidos);
         EEPROM.commit(); // Asegura la escritura en ESP32
 
         // --- IMPRESIÓN EN MONITOR SERIAL ---

@@ -1,6 +1,6 @@
 # Librería AdaptiveTXWSN
 
-[![Licencia: CC BY-NC-SA 4.0](https://img.shields.io/badge/Licencia-CC%20BY--NC--SA%204.0-blue.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+[![Licencia: LGPL 3.0](https://img.shields.io/badge/Licencia-LGPL%203.0-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0.html)
 
 Una librería de Arduino para ajustar adaptativamente el período de transmisión de un nodo WSN (Red de Sensores Inalámbricos) basado en el voltaje de su batería.
 
@@ -106,3 +106,14 @@ void loop() {
     // delay(10); // Evitar spam en el monitor serial
   }
 }
+
+
+```
+## ⚖️ Licencia
+
+Esta librería se distribuye bajo la licencia **LGPL 3.0**. Es gratuita y de código abierto para proyectos personales, educativos y de código abierto.
+
+### Uso Comercial
+La licencia LGPL 3.0 tiene ciertas condiciones si se usa en un software comercial de código cerrado.
+
+Si deseas utilizar esta librería en un producto comercial y prefieres evitar las restricciones de la LGPL, por favor, **contáctame en [FranciscoRosalesHuey@gmail.com]** para adquirir una licencia comercial alternativa (tipo MIT) que se adapte a tus necesidades.

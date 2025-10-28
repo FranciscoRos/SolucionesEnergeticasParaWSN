@@ -1,6 +1,6 @@
 # Librería EnergyWSN
 
-[![Licencia: CC BY-NC-SA 4.0](https://img.shields.io/badge/Licencia-CC%20BY--NC--SA%204.0-blue.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+[![Licencia: LGPL 3.0](https://img.shields.io/badge/Licencia-LGPL%203.0-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0.html)
 
 Una librería de ayuda para la gestión de energía en nodos WSN de bajo consumo, optimizada para arquitecturas **AVR** (Arduino UNO, Nano, Pro Mini).
 
@@ -137,3 +137,14 @@ void loop() {
   // -- El MCU se despierta aquí y el loop() comienza de nuevo --
   Serial.println("Ciclo de trabajo: MCU despierto!");
 }
+
+
+```
+## ⚖️ Licencia
+
+Esta librería se distribuye bajo la licencia **LGPL 3.0**. Es gratuita y de código abierto para proyectos personales, educativos y de código abierto.
+
+### Uso Comercial
+La licencia LGPL 3.0 tiene ciertas condiciones si se usa en un software comercial de código cerrado.
+
+Si deseas utilizar esta librería en un producto comercial y prefieres evitar las restricciones de la LGPL, por favor, **contáctame en [FranciscoRosalesHuey@gmail.com]** para adquirir una licencia comercial alternativa (tipo MIT) que se adapte a tus necesidades.

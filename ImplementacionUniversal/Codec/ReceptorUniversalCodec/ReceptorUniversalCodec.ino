@@ -14,8 +14,8 @@
 #include <CodecWSN.h>
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-#define USE_XBEE 
-//#define USE_LORA 
+//#define USE_XBEE 
+#define USE_LORA 
 //#define USE_NRF
 
 // ======================= CONFIGURACIÓN Y VARIABLES GLOBALES =======================
@@ -111,7 +111,7 @@ void loop() {
         mensajesRecibidos++;
 
         // --- GUARDADO EN EEPROM ---
-        EEPROM.get(3,, mensajesRecibidos);
+        EEPROM.put(3, mensajesRecibidos);
 
         // --- IMPRESIÓN EN MONITOR SERIAL ---
         Serial.print("Mensaje #" + String(mensajesRecibidos) + " Recibido -> ");

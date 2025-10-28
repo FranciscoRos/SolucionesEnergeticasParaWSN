@@ -15,8 +15,8 @@
 #include <CodecWSN.h>       
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-//#define USE_LORA
-#define USE_XBEE 
+#define USE_LORA
+//#define USE_XBEE 
 //#define USE_NRF
 
 // ======================= CONFIGURACIÓN GENERAL DE PINES =======================
@@ -126,7 +126,7 @@ void loop() {
     radio->enviar(frameBuffer, WSNFrame::FRAME_SIZE);
     
     // --- GUARDADO EN EEPROM ---
-    EEPROM.get(3,, paquetesEnviados);
+    EEPROM.put(3, paquetesEnviados);
 
     // --- IMPRESIÓN EN MONITOR SERIAL ---
     Serial.print("Enviando -> ");

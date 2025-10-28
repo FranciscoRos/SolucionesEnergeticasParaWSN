@@ -37,7 +37,7 @@ void setup() {
   Serial.begin(115200);
   while (!Serial);
 
-  Serial.println("\n--- RECEPTOR UNIVERSAL INICIADO ---");
+  Serial.println("\n--- RECEPTOR UNIVERSAL ENERGY INICIADO ---");
 
   // --- INICIALIZACIÓN DEL MÓDULO DE RADIO ---
   Serial.print("Configurando radio: ");
@@ -112,7 +112,7 @@ void loop() {
       Serial.println(lineaCompleta);
 
       // --- GUARDADO EN EEPROM ---
-      EEPROM.get(3,, mensajesRecibidos);
+      EEPROM.get(3,  mensajesRecibidos);
       EEPROM.commit();
 
       radio->enviar("ON");
@@ -140,7 +140,7 @@ void loop() {
       Serial.println(lineaCompleta);
 
       // --- GUARDADO EN EEPROM --- 
-      EEPROM.put(3, mensajesRecibidos);
+      EEPROM.put(6, mensajesRecibidos);
       EEPROM.commit();
 
       radio->enviar("ON\n");

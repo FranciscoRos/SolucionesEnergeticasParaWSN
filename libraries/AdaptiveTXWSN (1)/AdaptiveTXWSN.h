@@ -1,6 +1,7 @@
 /**
  * @file AdaptiveTXWSN.h
  * @brief Define la clase AdaptiveTXWSN para la transmisión adaptativa en WSN.
+<<<<<<< HEAD
  *
  * Esta librería permite a un nodo sensor ajustar su
  * período de transmisión basado en el voltaje de su batería,
@@ -8,6 +9,13 @@
  * Autores: Francisco Rosales, Omar Tox, 2025-10.
  * Modificado para usar RadioInterface.
  * Versión 1.3
+=======
+ * Esta librería permite a un nodo sensor (ej. Arduino) ajustar su
+ * período de transmisión basado en el voltaje de su batería,
+ * ahorrando energía cuando el nivel es bajo.
+ * @authors Francisco Rosales, Omar Tox
+ * @date 2025-09
+>>>>>>> 12b1ce7b28d62faba63ce3daae3861fecba354f5
  */
 
  #pragma once
@@ -34,7 +42,7 @@
      float   divisorRArriba_k        = 100.0f; ///< Resistencia superior (kΩ) del divisor de voltaje (Vin -> R_arriba -> ADC).
      float   divisorRAbajo_k         =  33.0f; ///< Resistencia inferior (kΩ) del divisor de voltaje (ADC -> R_abajo -> GND).
      uint8_t muestrasPromedioAdc     = 8;      ///< Número de muestras a promediar para estabilizar la lectura de VBAT.
- 
+                                               ///< Si no se usan resistencias, añadir 0 y 1 para evitar división por cero.
      // --- Umbrales (VOLTIOS) ---
      float umbralAlto_V              = 3.90f;  ///< Voltaje por encima del cual se considera nivel ALTO.
      float umbralMedio_V             = 3.60f;  ///< Voltaje por encima del cual se considera nivel MEDIO (y por debajo de ALTO).

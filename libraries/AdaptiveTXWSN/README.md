@@ -117,3 +117,13 @@ Esta librería se distribuye bajo la licencia **LGPL 3.0**. Es gratuita y de có
 La licencia LGPL 3.0 tiene ciertas condiciones si se usa en un software comercial de código cerrado.
 
 Si deseas utilizar esta librería en un producto comercial y prefieres evitar las restricciones de la LGPL, por favor, **contáctame en [FranciscoRosalesHuey@gmail.com]** para adquirir una licencia comercial alternativa (tipo MIT) que se adapte a tus necesidades.
+
+
+## 👥 Autores
+
+Esta biblioteca fue desarrollada en coautoría y colaboración equitativa por:
+
+* **Francisco Jareth Rosales Huey** ([@FranciscoRos](https://github.com/FranciscoRos))
+* **Omar Tox Dzul** ([@xWhiteBerry](https://github.com/xWhiteBerry))
+
+Ambos autores merecen igual reconocimiento por su contribución al diseño y desarrollo de este proyecto.

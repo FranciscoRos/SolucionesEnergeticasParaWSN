@@ -154,6 +154,6 @@ Si deseas utilizar esta librería en un producto comercial y prefieres evitar la
 Esta biblioteca fue desarrollada en coautoría y colaboración equitativa por:
 
 * **Francisco Jareth Rosales Huey** ([@FranciscoRos](https://github.com/FranciscoRos))
-* **Omar Tox Dzul** ([@xWhiteBerry](https://github.com/xWhiteBerry))
+* **Omar Tox Dzul** ([@Omar-Tox](https://github.com/Omar-Tox))
 
 Ambos autores merecen igual reconocimiento por su contribución al diseño y desarrollo de este proyecto.

@@ -151,6 +151,7 @@ void loop() {
       digitalWrite(RELAY_PIN, LOW);
     }
   }
+  delay(10000000000000);
 }
 
 // ======================= FUNCIONES DE LECTURA DE SENSORES =======================

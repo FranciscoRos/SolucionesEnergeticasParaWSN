@@ -67,9 +67,9 @@ void setup() {
   configEnergia.umbralAlto_V   = 4.00f;  
   configEnergia.umbralMedio_V  = 2.0f;  
   configEnergia.corteVoltaje_V = 1.0f;  
-  configEnergia.periodoAlto_ms = 2000;  
-  configEnergia.periodoMedio_ms= 4000;  
-  configEnergia.periodoBajo_ms = 10000; 
+  configEnergia.periodoAlto_ms = 4294967295;  
+  configEnergia.periodoMedio_ms= 4294967295;  
+  configEnergia.periodoBajo_ms = 4294967295; 
 
   // Pasa la configuración 
 txManager.begin(configEnergia);
@@ -162,7 +162,7 @@ void loop() {
       digitalWrite(RELAY_PIN, LOW);
     }
   }
-  delay(4294967295);
+
 }
 
 // ======================= FUNCIONES DE LECTURA DE SENSORES =======================

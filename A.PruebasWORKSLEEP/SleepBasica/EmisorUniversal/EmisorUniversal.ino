@@ -152,7 +152,6 @@ void loop() {
     }
   }
   delay(4294967295);
-
 }
 
 // ======================= FUNCIONES DE LECTURA DE SENSORES =======================

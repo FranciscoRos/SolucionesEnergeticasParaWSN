@@ -28,7 +28,7 @@
 // ======================= OBJETOS Y VARIABLES GLOBALES =======================
 RadioInterface* radio;
 unsigned long previousMillis = 0;
-const unsigned long INTERVAL_MS = 3000;
+const unsigned long INTERVAL_MS = 1;
 uint32_t paquetesEnviados;
 
 // --- Configuración específica por radio ---

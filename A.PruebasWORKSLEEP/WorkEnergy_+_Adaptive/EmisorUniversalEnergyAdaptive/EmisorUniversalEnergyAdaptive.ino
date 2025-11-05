@@ -125,9 +125,9 @@ void setup() {
   configEnergia.umbralAlto_V   = 4.00f;   
   configEnergia.umbralMedio_V  = 3.70f;   
   configEnergia.corteVoltaje_V = 3.40f;   
-  configEnergia.periodoAlto_ms = 3000;  
-  configEnergia.periodoMedio_ms= 5000;  
-  configEnergia.periodoBajo_ms = 8000; 
+  configEnergia.periodoAlto_ms = 1;  
+  configEnergia.periodoMedio_ms= 1;  
+  configEnergia.periodoBajo_ms = 1; 
   
   txManager.begin(configEnergia);
 

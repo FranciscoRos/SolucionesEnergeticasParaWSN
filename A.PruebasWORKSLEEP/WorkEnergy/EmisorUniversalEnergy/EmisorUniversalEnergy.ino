@@ -38,7 +38,7 @@
 RadioInterface* radio;
 EnergyWSN energyManager;
 uint32_t paquetesEnviados;
-const unsigned long SLEEP_INTERVAL_MS = ( 6 * 1000);
+const unsigned long SLEEP_INTERVAL_MS = ( 1 );
 
 // --- Configuración específica por radio ---
 #if defined(USE_XBEE)

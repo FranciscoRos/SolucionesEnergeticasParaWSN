@@ -1,6 +1,7 @@
 /*
  * =======================================================================
- * ==    SKETCH EMISOR UNIVERSAL (ENERGY + ADAPTIVE + CODEC)            ==
+ * ==       SKETCH EMISOR UNIVERSAL (Energy + Adaptive + Codec)       ==
+ * ==         MODIFICADO PARA MODO DE TRABAJO INFINITO (HIGH)         ==
  * =======================================================================
  * Este sketch usa:
  * 1. UniversalRadioWSN: Para abstraer el hardware de radio (LoRa/XBee/NRF).
@@ -15,18 +16,24 @@
 #include <EEPROM.h>  
 
 #include <UniversalRadioWSN.h>       
-#include <EnergyWSN.h>      
+#include <EnergyWSN.h>       
 #include <AdaptiveTXWSN.h>   
-#include <CodecWSN.h>       
+#include <CodecWSN.h>        
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-#define USE_LORA
+//#define USE_LORA
 //#define USE_XBEE 
-//#define USE_NRF 
+#define USE_NRF 
 
+// --- INICIO BLOQUE MÉTRICAS (DEFINICIONES) ---
+unsigned long lastPrintTime = 0;
+const unsigned long printInterval = 2000; // Imprimir cada 2 segundos
+unsigned long totalLoopTime_us = 0;
+unsigned long loopCount = 0;
+// --- FIN BLOQUE MÉTRICAS ---
 // ======================= 2. CONFIGURACIÓN GENERAL DE PINES =======================
 #define RELAY_PIN         4   
-#define SENSOR_POWER_PIN  7    // Pin que alimenta a los sensores (controlado por EnergyWSN)
+#define SENSOR_POWER_PIN  7   // Pin que alimenta a los sensores (controlado por EnergyWSN)
 #define ACS_PIN           A0  
 #define ZMPT_PIN          A1  
 #define VBAT_PIN          A2   // Pin de sensado de batería (usado por AdaptiveTXWSN)
@@ -40,14 +47,14 @@
 #endif
 
 // ======================= 3. CONFIGURACIÓN DE EEPROM =======================
-#define EEPROM_COUNTER_ADDR 3 
+#define EEPROM_COUNTER_ADDR 3 // (Ya no se usa)
 
 // ======================= 4. OBJETOS Y VARIABLES GLOBALES =======================
 RadioInterface* radio;
 EnergyWSN energyManager;      // Gestiona el "cómo" dormir (hardware sleep)
 AdaptiveTXWSN txManager;      // Gestiona el "cuánto" dormir (tiempo adaptativo)
 AdaptiveTXWSN::Cfg configEnergia; // Configuración para el txManager (movido a global)
-uint32_t paquetesEnviados;    
+uint32_t paquetesEnviados = 0;     
 
 // --- Configuración específica por radio ---
 #if defined(USE_XBEE)
@@ -65,12 +72,12 @@ void setup() {
 
   Serial.begin(9600);
   while(!Serial);
-  Serial.println("\n--- INICIANDO EMISOR UNIVERSAL (ENERGY + ADAPTIVE + CODEC) ---");
+  Serial.println("\n--- INICIANDO EMISOR (MODO TRABAJO INFINITO) ---");
 
   // --- Recuperar contador desde la EEPROM ---
-  EEPROM.get(EEPROM_COUNTER_ADDR, paquetesEnviados);
-  Serial.print("Contador recuperado de EEPROM: ");
-  Serial.println(paquetesEnviados);
+  // EEPROM.get(EEPROM_COUNTER_ADDR, paquetesEnviados); // <-- COMENTADO
+  // Serial.print("Contador recuperado de EEPROM: ");
+  // Serial.println(paquetesEnviados);
 
   // --- INICIALIZACIÓN DEL MÓDULO DE RADIO ---
   Serial.print("Configurando radio: ");
@@ -122,12 +129,12 @@ void setup() {
   
   configEnergia.voltajeReferenciaAdc = 5.0f; 
   configEnergia.divisorRArriba_k = 0.0f;
-  configEnergia.divisorRAbajo_k  = 0.1f;     
+  configEnergia.divisorRAbajo_k  = 0.1f;    
   
   configEnergia.umbralAlto_V   = 4.00f;   
   configEnergia.umbralMedio_V  = 3.3f;   
   configEnergia.corteVoltaje_V = 2.0f;   
-  configEnergia.periodoAlto_ms = 1;  
+  configEnergia.periodoAlto_ms = 1;   
   configEnergia.periodoMedio_ms= 1;    
   configEnergia.periodoBajo_ms = 1; 
 
@@ -140,26 +147,42 @@ void setup() {
   energyConfig.pins.vbatSense = -1; // No usado (AdaptiveTXWSN lo gestiona)
   energyConfig.bootSleep = false;
   
+  // *** INICIO CORRECCIÓN DE LÓGICA ***
+  // Le decimos a la librería que tu hardware usa lógica invertida (LOW=ON, HIGH=OFF)
+  energyConfig.invertPwr = true; 
+  // *** FIN CORRECCIÓN DE LÓGICA ***
+  
   energyManager.begin(energyConfig, radio);
   Serial.println("Gestor de energía (sleep) inicializado.");
+
+  // --- INICIO BLOQUE MÉTRICAS (SETUP) ---
+  lastPrintTime = millis();
+  // --- FIN BLOQUE MÉTRICAS ---
+
+  // *** ENCENDIDO PERMANENTE ***
+  // El begin() los APAGA (porque invertPwr=true), aquí los encendemos permanentemente.
+  energyManager.powerSensors(true); // Esto ahora hará un LOW
+  Serial.println("Sensores energizados permanentemente.");
 }
 
-// ======================= 6. LOOP (CICLO DE SUEÑO ADAPTATIVO) =======================
+// ======================= 6. LOOP (CICLO DE TRABAJO INFINITO) =======================
 void loop() {
-  Serial.println("\n---------------------------------");
-  Serial.println("Iniciando ciclo de medición y envío.");
+  // --- INICIO BLOQUE MÉTRICAS (LOOP INICIO) ---
+  unsigned long startTime_us = micros();
+  
+  // Serial.println("\n---------------------------------"); // <-- COMENTADO
+  // Serial.println("Iniciando ciclo de medición y envío."); // <-- COMENTADO
   
   // --- 1. DESPERTAR RADIO Y SENSORES (CON VERIFICACIÓN) ---
   bool radioDespierta = energyManager.wakeRadio();
-  if (radioDespierta) {
-    Serial.println("Radio despertada OK.");
-  } else {
-    Serial.println("¡¡FALLO al despertar la radio!!");
-  }
+  // if (radioDespierta) { // <-- COMENTADO
+  //   Serial.println("Radio despertada OK.");
+  // } else {
+  //   Serial.println("¡¡FALLO al despertar la radio!!");
+  // }
   
-  energyManager.powerSensors(true); 
-  Serial.println("Sensores energizados (comando enviado).");
-  //delay(200); //estabilización
+  // energyManager.powerSensors(true); // Ya no es necesario, se hizo en setup
+  // Serial.println("Sensores energizados (comando enviado)."); // <-- COMENTADO
 
   // --- 2. LEER SENSORES Y ACTUALIZAR ESTADO ADAPTATIVO ---
   float voltage   = leerVoltajeZMPT();
@@ -181,101 +204,69 @@ void loop() {
   uint8_t frameBuffer[WSNFrame::FRAME_SIZE];
   WSNFrame::encodeFrameFromPacket(frameBuffer, miPaquete);
   
-  Serial.print("  -> Enviando Paquete (Binario): ");
-  Serial.print("ID: "); Serial.print(miPaquete.id);
-  Serial.print(" V: "); Serial.print(voltage, 2);
-  Serial.print(" I: "); Serial.print(corriente, 3);
-  Serial.print(" VBat: "); Serial.println(vbat, 2);
+  // Serial.print("   -> Enviando Paquete (Binario): "); // <-- COMENTADO
+  // Serial.print("ID: "); Serial.print(miPaquete.id); // <-- COMENTADO
+  // Serial.print(" V: "); Serial.print(voltage, 2); // <-- COMENTADO
+  // Serial.print(" I: "); Serial.print(corriente, 3); // <-- COMENTADO
+  // Serial.print(" VBat: "); Serial.println(vbat, 2); // <-- COMENTADO
 
   radio->enviar(frameBuffer, WSNFrame::FRAME_SIZE); 
     
     
   // --- 5. GUARDAR CONTADOR EN EEPROM ---
-  EEPROM.put(EEPROM_COUNTER_ADDR, paquetesEnviados);
+  // EEPROM.put(EEPROM_COUNTER_ADDR, paquetesEnviados); // <-- COMENTADO
   
   // --- 6. ESCUCHAR POR COMANDOS (VENTANA DE RECEPCIÓN) ---
-  Serial.print("Escuchando comandos por 500ms... ");
-  long tiempoInicioEscucha = millis();
-  bool comandoRecibido = false;
+  // Serial.print("Escuchando comandos por 500ms... "); // <-- COMENTADO
+  // long tiempoInicioEscucha = millis(); // <-- COMENTADO
+  // bool comandoRecibido = false; // <-- COMENTADO
   
-  if (radioDespierta) { // Solo escuchar si la radio está despierta
-    #if defined(USE_NRF)
-      // NRF usa paquetes discretos
-      while (millis() - tiempoInicioEscucha < 500) {
-        if (radio->hayDatosDisponibles()) {
-          String comando = radio->leerComoString();
-          comando.trim();
-          Serial.print("\nComando recibido: '"); Serial.print(comando); Serial.println("'");
-          if (comando == "ON") {
-            digitalWrite(RELAY_PIN, HIGH);
-            comandoRecibido = true;
-          } else if (comando == "OFF") {
-            digitalWrite(RELAY_PIN, LOW);
-            comandoRecibido = true;
-          }
-        }
-      }
-    #else
-      // LoRa/XBee usan streaming (buscan '\n')
-      String bufferComando = "";
-      while (millis() - tiempoInicioEscucha < 500) {
-        if (radio->hayDatosDisponibles()) {
-          bufferComando += radio->leerComoString();
-        }
-        int fin = bufferComando.indexOf('\n');
-        if (fin >= 0) {
-          String comando = bufferComando.substring(0, fin);
-          bufferComando = bufferComando.substring(fin + 1);
-          comando.trim();
-          
-          Serial.print("\nComando recibido: '"); Serial.print(comando); Serial.println("'");
-          if (comando == "ON") {
-            digitalWrite(RELAY_PIN, HIGH);
-            comandoRecibido = true;
-          } else if (comando == "OFF") {
-            digitalWrite(RELAY_PIN, LOW);
-            comandoRecibido = true;
-          }
-        }
-      }
-    #endif
-  } else {
-     Serial.print("... Escucha omitida (radio no despertó).");
-  }
-
-  if (!comandoRecibido) Serial.println("Ninguno.");
+  // if (radioDespierta) { // <-- COMENTADO
+  //   #if defined(USE_NRF)
+  //     // ... (todo el bloque de escucha NRF está COMENTADO) ...
+  //   #else
+  //     // ... (todo el bloque de escucha LoRa/XBee está COMENTADO) ...
+  //   #endif
+  // } else {
+  //    Serial.print("... Escucha omitida (radio no despertó)."); // <-- COMENTADO
+  // }
+  // if (!comandoRecibido) Serial.println("Ninguno."); // <-- COMENTADO
 
   // --- 7. APAGAR PERIFÉRICOS ---
-  energyManager.powerSensors(false); // Apagar sensores
-  Serial.println("Sensores apagados (comando enviado).");
-
-  bool radioDormida = energyManager.sleepRadio();
-  if (radioDormida) {
-     Serial.println("Radio dormida OK.");
-  } else {
-     Serial.println("¡¡FALLO al dormir la radio!!");
-  }
+  // energyManager.powerSensors(false); // Apagar sensores // <-- COMENTADO
+  // Serial.println("Sensores apagados (comando enviado)."); // <-- COMENTADO
+  // bool radioDormida = energyManager.sleepRadio(); // <-- COMENTADO
+  // if (radioDormida) { // <-- COMENTADO
+  //    Serial.println("Radio dormida OK.");
+  // } else {
+  //    Serial.println("¡¡FALLO al dormir la radio!!");
+  // }
 
   // --- 8. DORMIR EL MCU (TIEMPO ADAPTATIVO) ---
-  // Obtenemos el próximo período de sueño desde AdaptiveTXWSN
-  uint32_t sleepDuration_ms = txManager.currentPeriod(); 
+  // ... (todo el bloque de sleep está COMENTADO) ...
   
-  int currentLevel = (int)txManager.level();
-  String currentLevelStr;
-  switch (currentLevel) {
-    case 2: currentLevelStr = "ALTO"; break;
-    case 1: currentLevelStr = "MEDIO"; break;
-    default: currentLevelStr = "BAJO"; break;
+  // --- INICIO BLOQUE MÉTRICAS (LOOP FINAL) ---
+  totalLoopTime_us += (micros() - startTime_us);
+  loopCount++;
+
+  if (millis() - lastPrintTime >= printInterval) {
+    if (loopCount > 0) {
+      float avgTime_ms = (float)totalLoopTime_us / loopCount / 1000.0; 
+      
+      Serial.print("[METRICA] Loops en ");
+      Serial.print(printInterval);
+      Serial.print("ms: ");
+      Serial.print(loopCount);
+      
+      Serial.print(" | Tiempo loop (prom): ");
+      Serial.print(avgTime_ms, 4);
+      Serial.println(" ms");
+    }
+    lastPrintTime = millis();
+    totalLoopTime_us = 0;
+    loopCount = 0;
   }
-  
-  Serial.print("Nivel Bateria: " + currentLevelStr);
-  Serial.print(" (" + String(vbat, 2) + "V). ");
-  Serial.print("Proximo envio en: " + String(sleepDuration_ms / 1000.0, 0) + " seg.");
-  Serial.println();
-  
-  delay(100); 
-  
-  energyManager.sleepFor_ms(sleepDuration_ms); // Duerme por el tiempo variable
+  // --- FIN BLOQUE MÉTRICAS ---
 }
 
 // ======================= 7. FUNCIONES DE LECTURA DE SENSORES =======================
@@ -287,6 +278,5 @@ float leerVoltajeZMPT() {
 float leerCorrienteACS() {
   int lectura = analogRead(ACS_PIN);
   float volt = (lectura * 5.0) / 1023.0; 
-  return (volt - 2.5) / 0.066; }
-
-  
+  return (volt - 2.5) / 0.066; 
+}

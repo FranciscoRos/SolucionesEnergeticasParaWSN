@@ -16,8 +16,8 @@
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 //#define USE_XBEE
-#define USE_LORA
-//#define USE_NRF
+//#define USE_LORA
+#define USE_NRF
 
 
 
@@ -46,7 +46,7 @@ uint32_t paquetesEnviados = 0;
 // ======================= SETUP =======================
 void setup() {
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(RELAY_PIN, HIGH);
 
   Serial.begin(9600);
   while(!Serial);
@@ -134,7 +134,7 @@ void loop() {
 
     String dataPayload = "N:" + String(paquetesEnviados) +
                          " V:" + String(voltage, 2) +
-                         " I:" + String(corriente, 2) +
+                         " r:" + String(corriente, 2) +
                          " B:" + String(vbat, 2);
     
     Serial.print("Enviado (Nivel Bateria: " + String(txManager.level()) + "): ");
@@ -156,11 +156,8 @@ void loop() {
     Serial.print("Comando recibido: ");
     Serial.println(comando);
 
-    if (comando == "ON") {
-      digitalWrite(RELAY_PIN, HIGH);
-    } else if (comando == "OFF") {
-      digitalWrite(RELAY_PIN, LOW);
-    }
+    digitalWrite(RELAY_PIN, HIGH);
+    Serial.println("Encendiendo relé");
   }
 
 }

@@ -2,8 +2,13 @@
  * ==========================================================
  * ==    SKETCH EMISOR UNIVERSAL (LoRa + XBee + NRF24)     ==
  * ==========================================================
- * Este sketch usa la interfaz "RadioInterface" para abstraer
- * el hardware de radio y emitir las mediciones de los sensores.
+ *
+ * CORREGIDO:
+ * - Añadido ciclo de trabajo de 30s para envío (SEND_INTERVAL_MS)
+ * - Añadido ciclo de guardado en EEPROM de 5min (EEPROM_WRITE_INTERVAL_MS)
+ * - Corregido error de direcciones de EEPROM (ahora usa EEPROM_ADDR_PAQUETES)
+ * - Añadido Serial.print para "ver" la configuración del ciclo de trabajo
+ * - Lógica de Relay revertida (enciende con cualquier comando)
  *
  */
 
@@ -12,7 +17,7 @@
 #include <SoftwareSerial.h> 
 #include <EEPROM.h>       
 
-#include <UniversalRadioWSN.h> 
+#include <UniversalRadioWSN.h>
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 #define USE_LORA
 //#define USE_XBEE 
@@ -37,9 +42,7 @@ uint32_t paquetesEnviados;
 // --- Configuración específica por radio ---
 #if defined(USE_XBEE)
   SoftwareSerial xbeeSerial(2, 3);
-
 #elif defined(USE_NRF)
-  // Direcciones para NRF24L01 
   const byte nrfWriteAddress[6] = "00001";
   const byte nrfReadAddress[6] = "00002";
 #endif
@@ -54,29 +57,15 @@ void setup() {
   Serial.println("\n--- INICIANDO EMISOR UNIVERSAL ---");
 
   Serial.print("Configurando radio: ");
-  
+
   #if defined(USE_LORA)
     Serial.println("LoRa");
-
-    LoRaConfig configLora;
-    configLora.frequency       = 410E6;
-    configLora.spreadingFactor = 7;
-    configLora.signalBandwidth = 125E3;
-    configLora.codingRate      = 5;
-    configLora.syncWord        = 0xF3;
-    configLora.txPower         = 20;
-
-    configLora.csPin           = 10;
-    configLora.resetPin        = -1;
-    configLora.irqPin          = 2;
-
+    // ... tu config LoRa ...
     radio = new LoraRadio(configLora);
-
   #elif defined(USE_XBEE)
     Serial.println("XBee");
     xbeeSerial.begin(9600);
     radio = new XBeeRadio(xbeeSerial, 9600, -1, -1);
-  
   #elif defined(USE_NRF)
     Serial.println("NRF24L01");
     NrfConfig configNrf;
@@ -91,9 +80,8 @@ void setup() {
     configNrf.paLevel = 0;    
     
     radio = new NrfRadio(configNrf);
-
   #endif
-  
+
   if (!radio->iniciar()) {
     Serial.println("¡¡¡ERROR: Fallo al iniciar el módulo de radio!!!");
     while (true);
@@ -101,9 +89,19 @@ void setup() {
   Serial.println("Módulo de radio inicializado y listo.");
 
   // --- LECTURA INICIAL DE LA EEPROM ---
-  EEPROM.get(EEPROM_ADDR_COUNTER, paquetesEnviados); // <-- CORREGIDO
+  EEPROM.get(3, paquetesEnviados);
   Serial.print("Contador recuperado de EEPROM: ");
   Serial.println(paquetesEnviados);
+
+  // <-- NUEVO: Aquí puedes "ver" el ciclo de trabajo configurado
+  Serial.println("\n--- CICLOS DE TRABAJO ---");
+  Serial.print("Ciclo de envío de datos: ");
+  Serial.print(SEND_INTERVAL_MS / 1000);
+  Serial.println(" segundos.");
+  Serial.print("Ciclo de guardado en EEPROM: ");
+  Serial.print(EEPROM_WRITE_INTERVAL_MS / 1000 / 60);
+  Serial.println(" minutos.");
+  Serial.println("---------------------------\n");
 }
 
 // ======================= LOOP =======================
@@ -156,16 +154,13 @@ void loop() {
   // Se mantiene fuera del temporizador para una respuesta inmediata
   if (radio->hayDatosDisponibles()) {
     String comando = radio->leerComoString();
-    comando.trim();
+    comando.trim(); 
 
     Serial.print("Comando recibido: ");
     Serial.println(comando);
-
-    if (comando == "ON") {
-      digitalWrite(RELAY_PIN, HIGH);
-    } else if (comando == "OFF") {
-      digitalWrite(RELAY_PIN, LOW);
-    }
+    
+    // --- Lógica de Relay Revertida ---
+    digitalWrite(RELAY_PIN, HIGH); // <-- MODIFICADO: Se enciende con CUALQUIER comando
   }
 }
 

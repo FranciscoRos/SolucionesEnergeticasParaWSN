@@ -14,9 +14,9 @@
 
 #include <UniversalRadioWSN.h> 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-#define USE_LORA
+//#define USE_LORA
 //#define USE_XBEE 
-//#define USE_NRF    
+#define USE_NRF    
 
 // ======================= CONFIGURACIÓN GENERAL DE PINES =======================
 #define RELAY_PIN 4
@@ -39,7 +39,6 @@ uint32_t paquetesEnviados;
 #elif defined(USE_NRF)
   // Direcciones para NRF24L01 
   const byte nrfWriteAddress[6] = "00001";
-
   const byte nrfReadAddress[6] = "00002";
 #endif
 
@@ -145,12 +144,10 @@ void loop() {
     Serial.print("Comando recibido: ");
     Serial.println(comando);
 
-    if (comando == "ON") {
       digitalWrite(RELAY_PIN, HIGH);
-    } else if (comando == "OFF") {
-      digitalWrite(RELAY_PIN, LOW);
-    }
+
   }
+  Serial.println("durmiendo");
   delay(4294967295);
 }
 

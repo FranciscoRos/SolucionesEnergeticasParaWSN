@@ -10,13 +10,13 @@
 // --- LIBRERÍAS DE LA APLICACIÓN ---
 #include <SPI.h>
 #include <SoftwareSerial.h> 
-#include <EEPROM.h>         
+#include <EEPROM.h>       
 
 #include <UniversalRadioWSN.h> 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 #define USE_LORA
 //#define USE_XBEE 
-//#define USE_NRF    
+//#define USE_NRF     
 
 // ======================= CONFIGURACIÓN GENERAL DE PINES =======================
 #define RELAY_PIN 4
@@ -24,12 +24,14 @@
 #define ZMPT_PIN  A1
 #define VBAT_PIN  A2
 
+// =================== DIRECCIÓN EEPROM (PARA EL CONTADOR) ==================
+#define EEPROM_ADDR_COUNTER 3 // Dirección de inicio para guardar el contador
 
 // ======================= OBJETOS Y VARIABLES GLOBALES =======================
 RadioInterface* radio;
 
 unsigned long previousMillis = 0;
-const unsigned long INTERVAL_MS = 1;
+const unsigned long INTERVAL_MS = 1000; // Ejecutar cada 1 segundo
 uint32_t paquetesEnviados;
 
 // --- Configuración específica por radio ---
@@ -39,7 +41,6 @@ uint32_t paquetesEnviados;
 #elif defined(USE_NRF)
   // Direcciones para NRF24L01 
   const byte nrfWriteAddress[6] = "00001";
-
   const byte nrfReadAddress[6] = "00002";
 #endif
 
@@ -80,11 +81,11 @@ void setup() {
     Serial.println("NRF24L01");
     NrfConfig configNrf;
     
-    configNrf.cePin = 9;  
+    configNrf.cePin = 9;   
     configNrf.csnPin = 10; 
     configNrf.writeAddress = nrfWriteAddress;
     configNrf.readAddress = nrfReadAddress;
-    configNrf.channel = 108;           
+    configNrf.channel = 108;         
     
     configNrf.dataRate = 250; 
     configNrf.paLevel = 0;    
@@ -100,44 +101,59 @@ void setup() {
   Serial.println("Módulo de radio inicializado y listo.");
 
   // --- LECTURA INICIAL DE LA EEPROM ---
-  EEPROM.get(3, paquetesEnviados);
+  EEPROM.get(EEPROM_ADDR_COUNTER, paquetesEnviados); // <-- CORREGIDO
   Serial.print("Contador recuperado de EEPROM: ");
   Serial.println(paquetesEnviados);
 }
 
+// ======================= LOOP =======================
 void loop() {
   unsigned long currentMillis = millis();
+
+  // --- BLOQUE 1: LÓGICA DE ENVÍO (Se ejecuta cada INTERVAL_MS) ---
   if (currentMillis - previousMillis >= INTERVAL_MS) {
     previousMillis = currentMillis;
 
+    // --- INICIO DE LA MEDICIÓN DE TIEMPO ---
+    unsigned long startTime = millis(); // <-- AÑADIDO
 
     float voltage = leerVoltajeZMPT();
     float corriente = leerCorrienteACS();
     float vbat = leerVoltajeBateria();
     paquetesEnviados++;
+    
+    unsigned long uptimeSeconds = currentMillis / 1000;
 
     String dataPayload = "N:" + String(paquetesEnviados) +
+                         " T:" + String(uptimeSeconds) +  
                          " V:" + String(voltage, 2) +
                          " I:" + String(corriente, 2) +
-                         " B:" + String(vbat, 
-2);
+                         " B:" + String(vbat, 2);
     
     Serial.print("Enviado: ");
     Serial.println(dataPayload);
 
     #if defined(USE_NRF)
-      
       radio->enviar(dataPayload);
     #else
-      
       radio->enviar(dataPayload + "\n");
     #endif
     
     // --- GUARDADO EN EEPROM ---
-    EEPROM.put(5, paquetesEnviados);
+    EEPROM.put(EEPROM_ADDR_COUNTER, paquetesEnviados); // <-- CORREGIDO
+
+    // --- FIN DE LA MEDICIÓN DE TIEMPO ---
+    unsigned long endTime = millis(); // <-- AÑADIDO
+    
+    Serial.print("-> Tiempo de trabajo: ");        // <-- AÑADIDO
+    Serial.print(endTime - startTime);            // <-- AÑADIDO
+    Serial.println(" ms");                         // <-- AÑADIDO
+    Serial.println("---------------------------------");
   }
 
-  // Comprueba si hay comandos entrantes ("ON" / "OFF")
+
+  // --- BLOQUE 2: LÓGICA DE RECEPCIÓN (Se ejecuta siempre) ---
+  // Se mantiene fuera del temporizador para una respuesta inmediata
   if (radio->hayDatosDisponibles()) {
     String comando = radio->leerComoString();
     comando.trim();

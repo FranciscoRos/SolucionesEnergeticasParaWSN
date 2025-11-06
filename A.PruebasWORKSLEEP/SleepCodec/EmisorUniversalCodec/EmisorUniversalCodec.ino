@@ -29,7 +29,7 @@
 RadioInterface* radio;
 unsigned long previousMillis = 0;
 const unsigned long INTERVAL_MS = 4294967295;
-uint32_t paquetesEnviados;
+uint32_t paquetesEnviados = 0;
 
 // --- Configuración específica por radio ---
 #if defined(USE_XBEE)
@@ -95,23 +95,18 @@ void setup() {
   Serial.println("Módulo de radio inicializado y listo.");
 
   // --- LECTURA INICIAL DE LA EEPROM ---
-  EEPROM.get(3, paquetesEnviados);
-  Serial.print("Contador recuperado de EEPROM: ");
-  Serial.println(paquetesEnviados);
+  
 }
 
 // ======================= LOOP =======================
 void loop() {
   // --- Envío de datos de sensores cada INTERVAL_MS ---
-  unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= INTERVAL_MS) {
-    previousMillis = currentMillis;
 
     // 1. Leer los sensores
     float voltage = leerVoltajeZMPT();
     float corriente = leerCorrienteACS();
     float vbat = leerVoltajeBateria();
-    paquetesEnviados++;
+    
 
     // 2. Crear un paquete de datos binario
     Packet miPaquete;
@@ -125,8 +120,7 @@ void loop() {
     WSNFrame::encodeFrameFromPacket(frameBuffer, miPaquete);
     radio->enviar(frameBuffer, WSNFrame::FRAME_SIZE);
     
-    // --- GUARDADO EN EEPROM ---
-    EEPROM.put(3, paquetesEnviados);
+  
 
     // --- IMPRESIÓN EN MONITOR SERIAL ---
     Serial.print("Enviando -> ");
@@ -134,7 +128,7 @@ void loop() {
     Serial.print(" V: "); Serial.print(voltage, 2);
     Serial.print(" I: "); Serial.print(corriente, 3);
     Serial.print(" VBat: "); Serial.println(vbat, 2);
-  }
+  
 
   // --- Recepción de comandos ---
   if (radio->hayDatosDisponibles()) {
@@ -151,6 +145,7 @@ void loop() {
       }
     }
   }
+  delay(4294967295);
 }
 
 // ======================= FUNCIONES DE LECTURA DE SENSORES =======================

@@ -1,14 +1,14 @@
 /*
  * ==========================================================
  * ==   SKETCH EMISOR UNIVERSAL (LoRa + XBee + NRF24L01)   ==
- * ==   CON GESTIÓN ADAPTATIVA DE ENERGÍA                  ==
+ * ==   CON GESTIÓN ADAPTATIVA DE ENERGÍA                 ==
  * ==========================================================
  * Este sketch usa LoRa/XBee/NRF24L01 y ajusta su frecuencia de envío
  * automáticamente según el nivel de la batería para ahorrar
  * energía, usando la librería AdaptiveTXWSN.
  */
 
-// --- LIBRERÍAS DE LA APLICACIÓN ---
+// --- LIBRERIAS DE LA APLICACIÓN ---
 #include <SPI.h>
 #include <UniversalRadioWSN.h>
 #include <SoftwareSerial.h>
@@ -43,6 +43,14 @@ uint32_t paquetesEnviados = 0;
   const byte nrfReadAddress[6] = "00002";
 #endif
 
+// --- INICIO DE CÓDIGO AÑADIDO (MÉTRICAS DE LOOP) ---
+unsigned long lastPrintTime = 0; // Para imprimir el tiempo cada X ms
+const unsigned long printInterval = 2000; // Imprimir cada 2 segundos
+unsigned long totalLoopTime_us = 0; // Acumulador de tiempo de loop (en microsegundos)
+unsigned long loopCount = 0; // Contador de loops
+// --- FIN DE CÓDIGO AÑADIDO ---
+
+
 // ======================= SETUP =======================
 void setup() {
   pinMode(RELAY_PIN, OUTPUT);
@@ -57,7 +65,7 @@ void setup() {
   AdaptiveTXWSN::Cfg configEnergia;
 
 
-  configEnergia.pinAdcBateria        = VBAT_PIN;
+  configEnergia.pinAdcBateria       = VBAT_PIN;
   configEnergia.voltajeReferenciaAdc = 5.0f;     // Para Arduino a 5V
 
   configEnergia.divisorRArriba_k = 0.1f;
@@ -72,7 +80,7 @@ void setup() {
   configEnergia.periodoBajo_ms = 1; 
 
   // Pasa la configuración 
-txManager.begin(configEnergia);
+  txManager.begin(configEnergia);
 
   // --- INYECCIÓN DE DEPENDENCIA DEL RADIO ---
   Serial.print("Configurando radio: ");
@@ -119,12 +127,20 @@ txManager.begin(configEnergia);
     while (true);
   }
   Serial.println("Módulo de radio inicializado y listo.");
+
+  // --- CÓDIGO AÑADIDO (MÉTRICAS DE LOOP) ---
+  lastPrintTime = millis(); // Inicializa el temporizador de impresión
+  // --- FIN DE CÓDIGO AÑADIDO ---
 }
 
 // ======================= LOOP =======================
 void loop() {
+  // --- INICIO DE CÓDIGO AÑADIDO (MÉTRICAS DE LOOP) ---
+  unsigned long startTime_us = micros(); // 1. Registrar inicio (alta precisión)
+  // --- FIN DE CÓDIGO AÑADIDO ---
+
+
   //txManager decide cuándo enviar
-  if (txManager.tick()) {
     float voltage   = leerVoltajeZMPT();
     float corriente = leerCorrienteACS();
 
@@ -137,8 +153,8 @@ void loop() {
                          " I:" + String(corriente, 2) +
                          " B:" + String(vbat, 2);
     
-    Serial.print("Enviado (Nivel Bateria: " + String(txManager.level()) + "): ");
-    Serial.println(dataPayload);
+    //Serial.print("Enviado (Nivel Bateria: " + String(txManager.level()) + "): ");
+    //Serial.println(dataPayload);
 
     #if defined(USE_NRF)
       radio->enviar(dataPayload);
@@ -146,7 +162,7 @@ void loop() {
       radio->enviar(dataPayload + "\n");
     #endif
 
-  }
+  
 
   // --- Recepción de comandos ---
   if (radio->hayDatosDisponibles()) {
@@ -156,12 +172,36 @@ void loop() {
     Serial.print("Comando recibido: ");
     Serial.println(comando);
 
-    if (comando == "ON") {
       digitalWrite(RELAY_PIN, HIGH);
-    } else if (comando == "OFF") {
-      digitalWrite(RELAY_PIN, LOW);
-    }
+
   }
+
+
+  // --- INICIO DE CÓDIGO AÑADIDO (MÉTRICAS DE LOOP) ---
+  
+  // 2. Acumular métricas
+  totalLoopTime_us += (micros() - startTime_us);
+  loopCount++;
+
+  // 3. Imprimir promedio cada 'printInterval' milisegundos
+  if (millis() - lastPrintTime >= printInterval) {
+    
+    if (loopCount > 0) { // Evitar división por cero
+      // Calcular el tiempo promedio en milisegundos
+      float avgTime_ms = (float)totalLoopTime_us / loopCount / 1000.0; 
+      
+      Serial.print("[METRICA] Loops en " + String(printInterval) + "ms: " + String(loopCount));
+      Serial.print(" | Tiempo loop (prom): ");
+      Serial.print(avgTime_ms, 4); // Imprimir con 4 decimales
+      Serial.println(" ms");
+    }
+    
+    // Reiniciar contadores para el próximo intervalo
+    lastPrintTime = millis();
+    totalLoopTime_us = 0;
+    loopCount = 0;
+  }
+  // --- FIN DE CÓDIGO AÑADIDO ---
 }
 
 // ======================= FUNCIONES DE LECTURA DE SENSORES =======================

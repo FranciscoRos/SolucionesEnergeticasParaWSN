@@ -10,6 +10,16 @@
  *
  */
 
+ // --- INICIO BLOQUE MÉTRICAS (DEFINICIONES) ---
+unsigned long lastPrintTime = 0;
+const unsigned long printInterval = 2000; // Imprimir cada 2 segundos
+unsigned long totalLoopTime_us = 0;
+unsigned long loopCount = 0;
+// --- FIN BLOQUE MÉTRICAS ---
+
+
+
+
 // --- LIBRERÍAS DE LA APLICACIÓN ---
 #include <SPI.h>
 #include <SoftwareSerial.h> 
@@ -133,11 +143,18 @@ void setup() {
     while (true);
   }
   Serial.println("Módulo de radio inicializado y listo.");
+
+// --- INICIO BLOQUE MÉTRICAS (SETUP) ---
+lastPrintTime = millis();
+// --- FIN BLOQUE MÉTRICAS ---
 }
 
 // ======================= LOOP =======================
 void loop() {
-  
+  // --- INICIO BLOQUE MÉTRICAS (LOOP INICIO) ---
+unsigned long startTime_us = micros();
+// --- FIN BLOQUE MÉTRICAS ---
+
   // txManager decide cuándo enviar 
   if (txManager.tick()) {
     
@@ -180,11 +197,11 @@ void loop() {
     float periodInSeconds = currentPeriod_ms / 1000.0;
 
     // 5. Imprimir el mensaje de estado de batería
-    Serial.println("----------------------------------------");
-    Serial.print("Nivel Bateria: " + currentLevelStr); 
-    Serial.print(" (" + String(vbat, 2) + "V). ");
-    Serial.print("Proximo envio en: " + String(periodInSeconds, 0) + " seg.");
-    Serial.println();
+    //Serial.println("----------------------------------------");
+    //Serial.print("Nivel Bateria: " + currentLevelStr); 
+    //Serial.print(" (" + String(vbat, 2) + "V). ");
+    //Serial.print("Proximo envio en: " + String(periodInSeconds, 0) + " seg.");
+    //Serial.println();
 
 
     // 6. Decidir el formato del payload (Binario o Texto)
@@ -205,12 +222,12 @@ void loop() {
       // Enviar el frame binario
       radio->enviar(frameBuffer, WSNFrame::FRAME_SIZE);
 
-      // --- IMPRESIÓN EN MONITOR SERIAL (MODO BINARIO) ---
-      Serial.print("  -> Enviando Paquete (Binario): "); 
-      Serial.print("ID: "); Serial.print(miPaquete.id);
-      Serial.print(" V: "); Serial.print(voltage, 2);
-      Serial.print(" I: "); Serial.print(corriente, 3);
-      Serial.print(" VBat: "); Serial.println(vbat, 2);
+      // // --- IMPRESIÓN EN MONITOR SERIAL (MODO BINARIO) ---
+      // Serial.print("  -> Enviando Paquete (Binario): "); 
+      // Serial.print("ID: "); Serial.print(miPaquete.id);
+      // Serial.print(" V: "); Serial.print(voltage, 2);
+      // Serial.print(" I: "); Serial.print(corriente, 3);
+      // Serial.print(" VBat: "); Serial.println(vbat, 2);
 
     #else
       // --- MODO TEXTO (String) ---
@@ -221,8 +238,8 @@ void loop() {
                            " I:" + String(corriente, 2) +
                            " B:" + String(vbat, 2);
       
-      Serial.print("  -> Enviando Paquete (ASCII): "); 
-      Serial.println(dataPayload);
+      // Serial.print("  -> Enviando Paquete (ASCII): "); 
+      // Serial.println(dataPayload);
       
       // Enviar el payload de String
       #if defined(USE_NRF)
@@ -232,6 +249,7 @@ void loop() {
       #endif
 
     #endif
+    
   }
 
   // --- Recepción de comandos ---
@@ -243,13 +261,28 @@ void loop() {
       Serial.print("Comando recibido: ");
       Serial.println(comando);
 
-      if (comando == "ON") {
+    
         digitalWrite(RELAY_PIN, HIGH);
-      } else if (comando == "OFF") {
-        digitalWrite(RELAY_PIN, LOW);
-      }
+      
     }
   }
+  // --- INICIO BLOQUE MÉTRICAS (LOOP FINAL) ---
+totalLoopTime_us += (micros() - startTime_us);
+loopCount++;
+
+if (millis() - lastPrintTime >= printInterval) {
+  if (loopCount > 0) {
+    float avgTime_ms = (float)totalLoopTime_us / loopCount / 1000.0; 
+    Serial.print("[METRICA] Loops en " + String(printInterval) + "ms: " + String(loopCount));
+    Serial.print(" | Tiempo loop (prom): ");
+    Serial.print(avgTime_ms, 4);
+    Serial.println(" ms");
+  }
+  lastPrintTime = millis();
+  totalLoopTime_us = 0;
+  loopCount = 0;
+}
+// --- FIN BLOQUE MÉTRICAS ---
 }
 
 // ======================= FUNCIONES DE LECTURA DE SENSORES =======================

@@ -24,12 +24,17 @@
 #define ACS_PIN   A0
 #define ZMPT_PIN  A1
 #define VBAT_PIN  A2
-
+// --- INICIO BLOQUE MÉTRICAS (DEFINICIONES) ---
+unsigned long lastPrintTime = 0;
+const unsigned long printInterval = 2000; // Imprimir cada 2 segundos
+unsigned long totalLoopTime_us = 0;
+unsigned long loopCount = 0;
+// --- FIN BLOQUE MÉTRICAS ---
 // ======================= OBJETOS Y VARIABLES GLOBALES =======================
 RadioInterface* radio;
 unsigned long previousMillis = 0;
 const unsigned long INTERVAL_MS = 1;
-uint32_t paquetesEnviados;
+uint32_t paquetesEnviados = 0;
 
 // --- Configuración específica por radio ---
 #if defined(USE_XBEE)
@@ -95,17 +100,18 @@ void setup() {
   Serial.println("Módulo de radio inicializado y listo.");
 
   // --- LECTURA INICIAL DE LA EEPROM ---
-  EEPROM.get(3, paquetesEnviados);
-  Serial.print("Contador recuperado de EEPROM: ");
-  Serial.println(paquetesEnviados);
+  
+  // --- INICIO BLOQUE MÉTRICAS (SETUP) ---
+lastPrintTime = millis();
+// --- FIN BLOQUE MÉTRICAS ---
 }
 
 // ======================= LOOP =======================
 void loop() {
-  // --- Envío de datos de sensores cada INTERVAL_MS ---
-  unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= INTERVAL_MS) {
-    previousMillis = currentMillis;
+  // --- INICIO BLOQUE MÉTRICAS (LOOP INICIO) ---
+unsigned long startTime_us = micros();
+// --- FIN BLOQUE MÉTRICAS ---
+  
 
     // 1. Leer los sensores
     float voltage = leerVoltajeZMPT();
@@ -128,13 +134,13 @@ void loop() {
     // --- GUARDADO EN EEPROM ---
     EEPROM.put(3, paquetesEnviados);
 
-    // --- IMPRESIÓN EN MONITOR SERIAL ---
-    Serial.print("Enviando -> ");
-    Serial.print("ID: "); Serial.print(miPaquete.id);
-    Serial.print(" V: "); Serial.print(voltage, 2);
-    Serial.print(" I: "); Serial.print(corriente, 3);
-    Serial.print(" VBat: "); Serial.println(vbat, 2);
-  }
+    // // --- IMPRESIÓN EN MONITOR SERIAL ---
+    // Serial.print("Enviando -> ");
+    // Serial.print("ID: "); Serial.print(miPaquete.id);
+    // Serial.print(" V: "); Serial.print(voltage, 2);
+    // Serial.print(" I: "); Serial.print(corriente, 3);
+    // Serial.print(" VBat: "); Serial.println(vbat, 2);
+  
 
   // --- Recepción de comandos ---
   if (radio->hayDatosDisponibles()) {
@@ -144,13 +150,30 @@ void loop() {
     if (comando.length() > 0) {
       Serial.print("Comando recibido: ");
       Serial.println(comando);
-      if (comando == "ON") {
-        digitalWrite(RELAY_PIN, HIGH);
-      } else if (comando == "OFF") {
-        digitalWrite(RELAY_PIN, LOW);
-      }
+      
+  
     }
+
   }
+        digitalWrite(RELAY_PIN, HIGH);
+
+// --- INICIO BLOQUE MÉTRICAS (LOOP FINAL) ---
+totalLoopTime_us += (micros() - startTime_us);
+loopCount++;
+
+if (millis() - lastPrintTime >= printInterval) {
+  if (loopCount > 0) {
+    float avgTime_ms = (float)totalLoopTime_us / loopCount / 1000.0; 
+    Serial.print("[METRICA] Loops en " + String(printInterval) + "ms: " + String(loopCount));
+    Serial.print(" | Tiempo loop (prom): ");
+    Serial.print(avgTime_ms, 4);
+    Serial.println(" ms");
+  }
+  lastPrintTime = millis();
+  totalLoopTime_us = 0;
+  loopCount = 0;
+}
+// --- FIN BLOQUE MÉTRICAS ---
 }
 
 // ======================= FUNCIONES DE LECTURA DE SENSORES =======================

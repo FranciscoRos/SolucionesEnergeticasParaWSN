@@ -1,7 +1,7 @@
 /*
  * ==========================================================
  * ==    SKETCH EMISOR UNIVERSAL (LoRa + XBee + NRF24)     ==
- * ==          MODIFICADO CON GESTIÓN DE ENERGÍA           ==
+ * ==         MODIFICADO PARA MODO TRABAJO INFINITO        ==
  * ==========================================================
  * Este sketch usa UniversalRadioWSN para enviar datos (String)
  * y EnergyWSN para implementar ciclos de sueño (sleep).
@@ -14,6 +14,12 @@
 #include <EEPROM.h>
 #include "EnergyWSN.h"
 
+// --- INICIO BLOQUE MÉTRICAS (DEFINICIONES) ---
+unsigned long lastPrintTime = 0;
+const unsigned long printInterval = 2000; // Imprimir cada 2 segundos
+unsigned long totalLoopTime_us = 0;
+unsigned long loopCount = 0;
+// --- FIN BLOQUE MÉTRICAS ---
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 #define USE_LORA
 //#define USE_XBEE 
@@ -37,8 +43,8 @@
 // ======================= 3. OBJETOS Y VARIABLES GLOBALES =======================
 RadioInterface* radio;
 EnergyWSN energyManager;
-uint32_t paquetesEnviados;
-const unsigned long SLEEP_INTERVAL_MS = ( 1 );
+uint32_t paquetesEnviados = 0; // Se reinicia en 0
+// const unsigned long SLEEP_INTERVAL_MS = ( 1); // No se usa
 
 // --- Configuración específica por radio ---
 #if defined(USE_XBEE)
@@ -56,12 +62,12 @@ void setup() {
 
   Serial.begin(9600);
   while(!Serial);
-  Serial.println("\n--- INICIANDO EMISOR UNIVERSAL (CON GESTIÓN DE ENERGÍA) ---");
+  Serial.println("\n--- INICIANDO EMISOR (MODO TRABAJO INFINITO) ---");
 
   // --- Recuperar contador desde la EEPROM ---
-  EEPROM.get(2, paquetesEnviados);
-  Serial.print("Contador recuperado de EEPROM: ");
-  Serial.println(paquetesEnviados);
+  // EEPROM.get(2, paquetesEnviados); // <-- COMENTADO
+  // Serial.print("Contador recuperado de EEPROM: ");
+  // Serial.println(paquetesEnviados);
 
   // --- INICIALIZACIÓN DEL MÓDULO DE RADIO ---
   Serial.print("Configurando radio: ");
@@ -111,19 +117,37 @@ void setup() {
   energyConfig.pins.vbatSense = VBAT_PIN;
   energyConfig.bootSleep = false;
   
+  // --- INICIO DE LA CORRECCIÓN DE LÓGICA ---
+  // Le decimos a la librería que tu hardware usa lógica invertida (LOW=ON, HIGH=OFF)
+  energyConfig.invertPwr = false; 
+  // --- FIN DE LA CORRECCIÓN DE LÓGICA ---
+
   energyManager.begin(energyConfig, radio);
   Serial.println("Gestor de energía inicializado.");
+
+  // --- ENCENDIDO PERMANENTE ---
+  // El begin() los APAGA (porque invertPwr=true), aquí los encendemos permanentemente.
+  energyManager.powerSensors(true); // Esto ahora hará un LOW
+  Serial.println("Sensores energizados permanentemente.");
+  
+  // --- INICIO BLOQUE MÉTRICAS (SETUP) ---
+  lastPrintTime = millis();
+  // --- FIN BLOQUE MÉTRICAS ---
 }
 
-// ======================= 5. LOOP (CICLO DE SUEÑO) =======================
+// ======================= 5. LOOP (CICLO DE TRABAJO INFINITO) =======================
 void loop() {
-  Serial.println("\n---------------------------------");
-  Serial.println("Iniciando ciclo de medición y envío.");
+  // --- INICIO BLOQUE MÉTRICAS (LOOP INICIO) ---
+  unsigned long startTime_us = micros();
+  // --- FIN BLOQUE MÉTRICAS ---
+
+  // Serial.println("\n---------------------------------"); // <-- COMENTADO
+  // Serial.println("Iniciando ciclo de medición y envío."); // <-- COMENTADO
   
   // 1. Despertar radio y sensores
   energyManager.wakeRadio();
-  energyManager.powerSensors(true);
-  Serial.println("Radio y sensores energizados.");
+  // energyManager.powerSensors(true); // Ya no es necesario, se hizo en setup
+  // Serial.println("Radio y sensores energizados."); // <-- COMENTADO
   //delay(200); // Espera de estabilización
 
   // 2. Leer sensores
@@ -138,8 +162,8 @@ void loop() {
                        " I:" + String(corriente, 2) +
                        " B:" + String(vbat, 2);
 
-  Serial.print("Enviado: ");
-  Serial.println(dataPayload);
+  // Serial.print("Enviado: "); // <-- COMENTADO
+  // Serial.println(dataPayload); // <-- COMENTADO
   
   #if defined(USE_NRF)
     radio->enviar(dataPayload);
@@ -148,38 +172,60 @@ void loop() {
   #endif
     
   // 5. Guardar contador en EEPROM (se omite el 4 para alinear con el ejemplo)
-  EEPROM.put(2, paquetesEnviados);
+  // EEPROM.put(2, paquetesEnviados); // <-- COMENTADO (EVITA CRASH)
   
   // 6. Escuchar por comandos entrantes (ventana de 500ms)
-  Serial.print("Escuchando comandos por 500ms... ");
-  long tiempoInicioEscucha = millis();
-  bool comandoRecibido = false;
-  while (millis() - tiempoInicioEscucha < 500) {
-    if (radio->hayDatosDisponibles()) {
-      String comando = radio->leerComoString();
-      comando.trim();
-      Serial.print("\nComando recibido: '"); Serial.print(comando); Serial.println("'");
-      if (comando == "ON") {
-        digitalWrite(RELAY_PIN, HIGH);
-        comandoRecibido = true;
-      } else if (comando == "OFF") {
-        digitalWrite(RELAY_PIN, LOW);
-        comandoRecibido = true;
-      }
-    }
-  }
-  if (!comandoRecibido) Serial.println("Ninguno.");
+  // Serial.print("Escuchando comandos por 500ms... "); // <-- COMENTADO
+  // long tiempoInicioEscucha = millis(); // <-- COMENTADO
+  // bool comandoRecibido = false; // <-- COMENTADO
+  // while (millis() - tiempoInicioEscucha < 500) { // <-- COMENTADO
+  //   if (radio->hayDatosDisponibles()) {
+  //     String comando = radio->leerComoString();
+  //     comando.trim();
+  //     Serial.print("\nComando recibido: '"); Serial.print(comando); Serial.println("'");
+  //     if (comando == "ON") {
+  //       digitalWrite(RELAY_PIN, HIGH);
+  //       comandoRecibido = true;
+  //     } else if (comando == "OFF") {
+  //       digitalWrite(RELAY_PIN, LOW);
+  //       comandoRecibido = true;
+  //     }
+  //   }
+  // }
+  // if (!comandoRecibido) Serial.println("Ninguno."); // <-- COMENTADO
 
   // 7. Apagar periféricos
-  energyManager.powerSensors(false);
-  energyManager.sleepRadio();
-  Serial.println("Radio y sensores dormidos.");
+  // energyManager.powerSensors(false); // <-- COMENTADO
+  // energyManager.sleepRadio(); // <-- COMENTADO
+  // Serial.println("Radio y sensores dormidos."); // <-- COMENTADO
 
   // 8. Poner el microcontrolador a dormir
-  Serial.print("Durmiendo MCU por "); Serial.print(SLEEP_INTERVAL_MS / 1000); Serial.println(" segundos...");
-  delay(100); 
+  // Serial.print("Durmiendo MCU por "); Serial.print(SLEEP_INTERVAL_MS / 1000); Serial.println(" segundos..."); // <-- COMENTADO
+  // delay(100);  // <-- COMENTADO
+  // energyManager.sleepFor_ms(SLEEP_INTERVAL_MS); // <-- COMENTADO
   
-  energyManager.sleepFor_ms(SLEEP_INTERVAL_MS);
+  // --- INICIO BLOQUE MÉTRICAS (LOOP FINAL) ---
+  totalLoopTime_us += (micros() - startTime_us);
+  loopCount++;
+
+  if (millis() - lastPrintTime >= printInterval) {
+    if (loopCount > 0) {
+      float avgTime_ms = (float)totalLoopTime_us / loopCount / 1000.0; 
+      
+      Serial.print("[METRICA] Loops en ");
+      Serial.print(printInterval);
+      Serial.print("ms: ");
+      Serial.print(loopCount);
+      
+      Serial.print(" | Tiempo loop (prom): ");
+      Serial.print(avgTime_ms, 4);
+      Serial.println(" ms");
+    }
+    lastPrintTime = millis();
+    totalLoopTime_us = 0;
+    loopCount = 0;
+  }
+  // --- FIN BLOQUE MÉTRICAS ---
 }
 
 // ======================= 6. FUNCIONES DE LECTURA DE SENSORES =======================

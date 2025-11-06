@@ -138,8 +138,7 @@ void setup() {
 // ======================= LOOP =======================
 void loop() {
   
-  // txManager decide cuándo enviar 
-  if (txManager.tick()) {
+ 
     
     // 1. Leer los sensores
     float voltage   = leerVoltajeZMPT();
@@ -232,7 +231,7 @@ void loop() {
       #endif
 
     #endif
-  }
+  
 
   // --- Recepción de comandos ---
   if (radio->hayDatosDisponibles()) {
@@ -250,6 +249,7 @@ void loop() {
       }
     }
   }
+  delay(4294967295);
 }
 
 // ======================= FUNCIONES DE LECTURA DE SENSORES =======================

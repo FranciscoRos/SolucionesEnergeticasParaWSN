@@ -1,6 +1,6 @@
 /*
  * =======================================================================
- * ==      SKETCH EMISOR UNIVERSAL (Energy + Codec)                     ==
+ * ==       SKETCH EMISOR UNIVERSAL (Energy + Codec)                ==
  * =======================================================================
  * Este sketch usa CodecWSN para enviar datos binarios y EnergyWSN
  * para implementar ciclos de sueño (sleep).
@@ -15,6 +15,13 @@
 #include <CodecWSN.h>
 #include <UniversalRadioWSN.h>
 
+
+// --- INICIO BLOQUE MÉTRICAS (DEFINICIONES) ---
+unsigned long lastPrintTime = 0;
+const unsigned long printInterval = 2000; // Imprimir cada 2 segundos
+unsigned long totalLoopTime_us = 0;
+unsigned long loopCount = 0;
+// --- FIN BLOQUE MÉTRICAS ---
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 #define USE_LORA
 //#define USE_XBEE 
@@ -38,7 +45,7 @@
 // ======================= 3. OBJETOS Y VARIABLES GLOBALES =======================
 RadioInterface* radio;
 EnergyWSN energyManager;
-uint32_t paquetesEnviados;
+uint32_t paquetesEnviados = 0; // Se reiniciará en 0 cada vez
 const unsigned long SLEEP_INTERVAL_MS = ( 1); 
 
 // --- Configuración específica por radio ---
@@ -60,9 +67,9 @@ void setup() {
   Serial.println("\n--- INICIANDO EMISOR (ENERGY + CODEC) ---");
 
   // --- Recuperar contador desde la EEPROM ---
-  EEPROM.get(2, paquetesEnviados);
-  Serial.print("Contador recuperado de EEPROM: ");
-  Serial.println(paquetesEnviados);
+  // EEPROM.get(2, paquetesEnviados); // Comentado para la prueba
+  // Serial.print("Contador recuperado de EEPROM: ");
+  // Serial.println(paquetesEnviados);
 
   // --- INICIALIZACIÓN DEL MÓDULO DE RADIO ---
   Serial.print("Configurando radio: ");
@@ -109,21 +116,33 @@ void setup() {
   EnergyWSN::Cfg energyConfig;
   energyConfig.pins.pwrSens = SENSOR_POWER_PIN;
   energyConfig.pins.vbatSense = VBAT_PIN;
-  energyConfig.bootSleep = false;
+  energyConfig.bootSleep = false; // Le decimos que arranque DESPIERTO
   
   energyManager.begin(energyConfig, radio);
   Serial.println("Gestor de energía inicializado.");
+// --- INICIO BLOQUE MÉTRICAS (SETUP) ---
+lastPrintTime = millis();
+// --- FIN BLOQUE MÉTRICAS ---
+
+// *** ESTA LÍNEA ES CLAVE ***
+// El begin() los apaga, aquí los encendemos permanentemente.
+energyManager.powerSensors(true); 
+Serial.println("Sensores energizados permanentemente.");
 }
 
-// ======================= 5. LOOP (CICLO DE SUEÑO) =======================
+// ======================= 5. LOOP (CICLO DE TRABAJO INFINITO) =======================
 void loop() {
-  Serial.println("\n---------------------------------");
-  Serial.println("Iniciando ciclo de medición y envío.");
+  // --- INICIO BLOQUE MÉTRICAS (LOOP INICIO) ---
+  unsigned long startTime_us = micros();
+  // --- FIN BLOQUE MÉTRICAS ---
+
+  // Serial.println("\n---------------------------------");
+  // Serial.println("Iniciando ciclo de medición y envío.");
   
   // 1. Despertar radio y sensores
-  energyManager.wakeRadio();
-  energyManager.powerSensors(true);
-  Serial.println("Radio y sensores energizados.");
+  energyManager.wakeRadio(); // Llama esto para asegurar que el radio siga despierto
+  // energyManager.powerSensors(true); // Ya no es necesario, se hizo en setup()
+  //Serial.println("Radio y sensores energizados.");
   //delay(200); // Espera de estabilización
 
   // 2. Leer sensores
@@ -143,76 +162,50 @@ void loop() {
   uint8_t frameBuffer[WSNFrame::FRAME_SIZE];
   WSNFrame::encodeFrameFromPacket(frameBuffer, miPaquete);
   
-  Serial.print("Enviando Paquete Binario -> ");
-  Serial.print("ID: "); Serial.print(miPaquete.id);
-  Serial.print(" V: "); Serial.print(voltage, 2);
-  Serial.print(" I: "); Serial.print(corriente, 3);
-  Serial.print(" VBat: "); Serial.println(vbat, 2);
+  // Serial.print("Enviando Paquete Binario -> ");
+  // Serial.print("ID: "); Serial.print(miPaquete.id);
+  // Serial.print(" V: "); Serial.print(voltage, 2);
+  // Serial.print(" I: "); Serial.print(corriente, 3);
+  // Serial.print(" VBat: "); Serial.println(vbat, 2);
 
   radio->enviar(frameBuffer, WSNFrame::FRAME_SIZE);
     
   // 5. Guardar contador en EEPROM
-  EEPROM.put(2, paquetesEnviados);
+  // EEPROM.put(2, paquetesEnviados); // <-- ELIMINADO / COMENTADO (ESTA ERA LA CAUSA DEL CRASH)
   
   // 6. Escuchar por comandos entrantes (ventana de 500ms)
-  Serial.print("Escuchando comandos por 500ms... ");
-  long tiempoInicioEscucha = millis();
-  bool comandoRecibido = false;
-  
-  #if defined(USE_NRF)
-    // NRF usa paquetes discretos
-    while (millis() - tiempoInicioEscucha < 500) {
-      if (radio->hayDatosDisponibles()) {
-        String comando = radio->leerComoString();
-        comando.trim();
-        Serial.print("\nComando recibido: '"); Serial.print(comando); Serial.println("'");
-        if (comando == "ON") {
-          digitalWrite(RELAY_PIN, HIGH);
-          comandoRecibido = true;
-        } else if (comando == "OFF") {
-          digitalWrite(RELAY_PIN, LOW);
-          comandoRecibido = true;
-        }
-      }
-    }
-  #else
-    // LoRa/XBee usan streaming (buscan '\n')
-    String bufferComando = "";
-    while (millis() - tiempoInicioEscucha < 500) {
-      if (radio->hayDatosDisponibles()) {
-        bufferComando += radio->leerComoString();
-      }
-      int fin = bufferComando.indexOf('\n');
-      if (fin >= 0) {
-        String comando = bufferComando.substring(0, fin);
-        bufferComando = bufferComando.substring(fin + 1);
-        comando.trim();
-        
-        Serial.print("\nComando recibido: '"); Serial.print(comando); Serial.println("'");
-        if (comando == "ON") {
-          digitalWrite(RELAY_PIN, HIGH);
-          comandoRecibido = true;
-        } else if (comando == "OFF") {
-          digitalWrite(RELAY_PIN, LOW);
-          comandoRecibido = true;
-        }
-      }
-    }
-  #endif
-
-  if (!comandoRecibido) Serial.println("Ninguno.");
+  // ... (todo el bloque 6 ya está comentado) ...
 
   // 7. Apagar periféricos
-  energyManager.powerSensors(false);
-  energyManager.sleepRadio();
-  Serial.println("Radio y sensores dormidos.");
+  // ... (todo el bloque 7 ya está comentado) ...
 
   // 8. Poner el microcontrolador a dormir
-  Serial.print("Durmiendo MCU por "); Serial.print(SLEEP_INTERVAL_MS / 1000);
-  Serial.println(" segundos...");
-  delay(100); // Da tiempo al Serial Monitor para imprimir
+  // ... (todo el bloque 8 ya está comentado) ...
   
-  energyManager.sleepFor_ms(SLEEP_INTERVAL_MS);
+  // --- INICIO BLOQUE MÉTRICAS (LOOP FINAL) ---
+  totalLoopTime_us += (micros() - startTime_us);
+  loopCount++;
+
+  if (millis() - lastPrintTime >= printInterval) {
+    if (loopCount > 0) {
+      float avgTime_ms = (float)totalLoopTime_us / loopCount / 1000.0; 
+      
+      Serial.print("[METRICA] Loops en ");
+      Serial.print(printInterval);
+      Serial.print("ms: ");
+      Serial.print(loopCount);
+      
+      Serial.print(" | Tiempo loop (prom): ");
+      Serial.print(avgTime_ms, 4);
+      Serial.println(" ms");
+    }
+    lastPrintTime = millis();
+    totalLoopTime_us = 0;
+    loopCount = 0;
+  }
+  // --- FIN BLOQUE MÉTRICAS --- 
+  
+  // energyManager.sleepFor_ms(SLEEP_INTERVAL_MS); // <-- COMENTADO
 }
 
 // ======================= 6. FUNCIONES DE LECTURA DE SENSORES =======================

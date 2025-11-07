@@ -16,8 +16,8 @@
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 //#define USE_LORA
-//#define USE_XBEE 
-#define USE_NRF
+#define USE_XBEE 
+//#define USE_NRF
 
 // ======================= CONFIGURACIÓN GENERAL DE PINES =======================
 #define RELAY_PIN 4

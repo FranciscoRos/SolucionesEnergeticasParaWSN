@@ -15,9 +15,9 @@
 #include <AdaptiveTXWSN.h>
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-//#define USE_XBEE
+#define USE_XBEE
 //#define USE_LORA
-#define USE_NRF
+//#define USE_NRF
 
 
 

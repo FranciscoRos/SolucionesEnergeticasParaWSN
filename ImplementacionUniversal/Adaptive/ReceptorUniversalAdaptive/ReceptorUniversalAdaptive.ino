@@ -9,21 +9,23 @@
 // --- LIBRERÍAS ---
 #include <SPI.h>
 #include <UniversalRadioWSN.h>
+#include <EEPROM.h>
 
 
 // --- SELECCIÓN DEL MÓDULO DE RADIO ---
 //#define USE_XBEE
-#define USE_LORA
-//#define USE_NRF
+//#define USE_LORA
+#define USE_NRF
 
 // ======================= CONFIGURACIÓN Y VARIABLES GLOBALES =======================
-
-
 
 // --- OBJETOS Y VARIABLES GLOBALES ---
 RadioInterface* radio;
 String bufferReceptor = ""; // Buffer para acumular datos recibidos
 uint32_t mensajesRecibidos = 0;
+
+#define EEPROM_SIZE 32
+#define EEPROM_ADDR 0
 
 #if defined(USE_NRF)
   const byte nrfReadAddress[6] = "00001";
@@ -36,7 +38,7 @@ uint32_t mensajesRecibidos = 0;
 void setup() {  
   Serial.begin(115200);
   while (!Serial);
-  Serial.println("\n--- INICIANDO RECEPTOR UNIVERSAL (XBEE) ---");
+  Serial.println("\n--- INICIANDO RECEPTOR UNIVERSAL ADAPTIVE ---");
 
   Serial.print("Configurando radio: ");
   #if defined(USE_XBEE)
@@ -83,6 +85,12 @@ void setup() {
     while (true);
   }
   Serial.println("Módulo de radio inicializado y escuchando.");
+
+  // --- LECTURA INICIAL DE LA EEPROM ---
+  EEPROM.begin(EEPROM_SIZE);
+  EEPROM.get(EEPROM_ADDR, mensajesRecibidos);       
+  Serial.print("Contador de mensajes recibidos recuperado de EEPROM: ");
+  Serial.println(mensajesRecibidos);
 }
 
 // --- LOOP ---
@@ -97,6 +105,9 @@ void loop() {
       mensajesRecibidos++;
       Serial.print("Paquete Recibido #" + String(mensajesRecibidos) + "> ");
       Serial.println(lineaCompleta);
+
+      EEPROM.put(EEPROM_ADDR, mensajesRecibidos);
+      EEPROM.commit();
 
       radio->enviar("ON");
     }
@@ -117,6 +128,10 @@ void loop() {
       mensajesRecibidos++;
       Serial.print("Paquete Recibido #" + String(mensajesRecibidos) + "> ");
       Serial.println(lineaCompleta);
+
+      // --- GUARDADO EN EEPROM ---
+      EEPROM.put(EEPROM_ADDR, mensajesRecibidos);
+      EEPROM.commit();
 
       radio->enviar("ON\n");
     }

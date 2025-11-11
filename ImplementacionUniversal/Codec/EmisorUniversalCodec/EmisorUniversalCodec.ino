@@ -15,9 +15,9 @@
 #include <CodecWSN.h>       
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-#define USE_LORA
+//#define USE_LORA
 //#define USE_XBEE 
-//#define USE_NRF
+#define USE_NRF
 
 // ======================= CONFIGURACIÓN GENERAL DE PINES =======================
 #define RELAY_PIN 4
@@ -95,7 +95,7 @@ void setup() {
   Serial.println("Módulo de radio inicializado y listo.");
 
   // --- LECTURA INICIAL DE LA EEPROM ---
-  EEPROM.get(3, paquetesEnviados);
+  EEPROM.get(1, paquetesEnviados);
   Serial.print("Contador recuperado de EEPROM: ");
   Serial.println(paquetesEnviados);
 }
@@ -126,7 +126,7 @@ void loop() {
     radio->enviar(frameBuffer, WSNFrame::FRAME_SIZE);
     
     // --- GUARDADO EN EEPROM ---
-    EEPROM.put(3, paquetesEnviados);
+    EEPROM.put(1, paquetesEnviados);
 
     // --- IMPRESIÓN EN MONITOR SERIAL ---
     Serial.print("Enviando -> ");

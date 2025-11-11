@@ -14,8 +14,8 @@
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 //#define USE_XBEE 
-#define USE_LORA 
-//#define USE_NRF
+//#define USE_LORA 
+#define USE_NRF
 
 // ======================= CONFIGURACIÓN Y VARIABLES GLOBALES =======================
 // Pines para XBee 
@@ -37,7 +37,7 @@ uint32_t mensajesRecibidos;
 void setup() {
   Serial.begin(115200);
   while (!Serial);
-  Serial.println("\n--- RECEPTOR UNIVERSAL INICIADO (MODO BINARIO) PARA CON ADAPTIVE  ---");
+  Serial.println("\n--- RECEPTOR UNIVERSAL INICIADO (MODO BINARIO) CON ADAPTIVE  ---");
 
   // --- INICIALIZACIÓN DEL MÓDULO DE RADIO ---
   Serial.print("Configurando radio: ");

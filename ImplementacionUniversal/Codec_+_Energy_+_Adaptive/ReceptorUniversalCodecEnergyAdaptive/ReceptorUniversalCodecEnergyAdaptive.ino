@@ -17,16 +17,17 @@
 #include <CodecWSN.h> 
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-#define USE_LORA 
+//#define USE_LORA 
 //#define USE_XBEE 
-//#define USE_NRF 
+#define USE_NRF 
 
 // ======================= 2. CONFIGURACIÓN GENERAL DE PINES =======================
 #define RXD2 16
 #define TXD2 17
 
 // ======================= 3. CONFIGURACIÓN DE EEPROM =======================
-#define EEPROM_COUNTER_ADDR 4 
+#define EEPROM_ADDR 0
+#define EEPROM_SIZE 32
 
 // ======================= 4. OBJETOS Y VARIABLES GLOBALES =======================
 RadioInterface* radio;     // Puntero a la interfaz.
@@ -89,8 +90,8 @@ void setup() {
   Serial.println("Módulo de radio inicializado. Esperando datos binarios...");
 
   // --- LECTURA INICIAL DE LA EEPROM ---
-  EEPROM.begin(sizeof(mensajesRecibidos)); 
-  EEPROM.get(EEPROM_COUNTER_ADDR, mensajesRecibidos);
+  EEPROM.begin(EEPROM_SIZE); 
+  EEPROM.get(EEPROM_ADDR, mensajesRecibidos);
   Serial.print("Contador de mensajes recuperado de EEPROM: ");
   Serial.println(mensajesRecibidos);
 }
@@ -112,7 +113,7 @@ void loop() {
         mensajesRecibidos++;
 
         // --- GUARDADO EN EEPROM ---
-        EEPROM.put(EEPROM_COUNTER_ADDR, mensajesRecibidos);
+        EEPROM.put(EEPROM_ADDR, mensajesRecibidos);
         EEPROM.commit(); 
         
         // --- IMPRESIÓN EN MONITOR SERIAL ---

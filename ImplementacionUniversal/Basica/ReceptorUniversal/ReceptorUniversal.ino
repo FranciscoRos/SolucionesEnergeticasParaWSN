@@ -13,14 +13,16 @@
 
 #include <UniversalRadioWSN.h>
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
-#define USE_XBEE 
+//#define USE_XBEE 
 //#define USE_LORA 
-//#define USE_NRF 
+#define USE_NRF 
 
 // ======================= CONFIGURACIÓN Y VARIABLES GLOBALES =======================
 // Pines para XBee 
 #define RXD2 16
 #define TXD2 17
+#define EEPROM_SIZE 32
+#define EEPROM_ADDR 0
 
 RadioInterface* radio;      
 uint32_t mensajesRecibidos;
@@ -91,8 +93,8 @@ void setup() {
   Serial.println("Módulo de radio inicializado. Esperando datos...");
 
   // --- LECTURA INICIAL DE LA EEPROM ---
-  EEPROM.begin(sizeof(mensajesRecibidos));
-  EEPROM.get(3, mensajesRecibidos);       
+  EEPROM.begin(EEPROM_SIZE);
+  EEPROM.get(EEPROM_ADDR, mensajesRecibidos);       
   Serial.print("Contador de mensajes recibidos recuperado de EEPROM: ");
   Serial.println(mensajesRecibidos);
 }
@@ -113,7 +115,7 @@ void loop() {
       Serial.println(lineaCompleta);
 
       // --- GUARDADO EN EEPROM ---
-      EEPROM.put(5, mensajesRecibidos);
+      EEPROM.put(EEPROM_ADDR, mensajesRecibidos);
       EEPROM.commit();
 
       radio->enviar("ON");
@@ -141,7 +143,7 @@ void loop() {
       Serial.println(lineaCompleta);
 
       // --- GUARDADO EN EEPROM ---
-      EEPROM.put(5, mensajesRecibidos);
+      EEPROM.put(1, mensajesRecibidos);
       EEPROM.commit();
 
       radio->enviar("ON\n");

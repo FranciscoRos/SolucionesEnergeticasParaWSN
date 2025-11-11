@@ -59,7 +59,7 @@ void setup() {
   Serial.println("\n--- INICIANDO EMISOR UNIVERSAL (CON GESTIÓN DE ENERGÍA) ---");
 
   // --- Recuperar contador desde la EEPROM ---
-  EEPROM.get(2, paquetesEnviados);
+  EEPROM.get(1, paquetesEnviados);
   Serial.print("Contador recuperado de EEPROM: ");
   Serial.println(paquetesEnviados);
 
@@ -148,7 +148,7 @@ void loop() {
   #endif
     
   // 5. Guardar contador en EEPROM (se omite el 4 para alinear con el ejemplo)
-  EEPROM.put(2, paquetesEnviados);
+  EEPROM.put(1, paquetesEnviados);
   
   // 6. Escuchar por comandos entrantes (ventana de 500ms)
   Serial.print("Escuchando comandos por 500ms... ");

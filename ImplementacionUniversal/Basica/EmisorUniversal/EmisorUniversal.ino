@@ -15,8 +15,8 @@
 #include <UniversalRadioWSN.h> 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 //#define USE_LORA
-#define USE_XBEE 
-//#define USE_NRF    
+//#define USE_XBEE 
+#define USE_NRF    
 
 // ======================= CONFIGURACIÓN GENERAL DE PINES =======================
 #define RELAY_PIN 4
@@ -100,7 +100,7 @@ void setup() {
   Serial.println("Módulo de radio inicializado y listo.");
 
   // --- LECTURA INICIAL DE LA EEPROM ---
-  EEPROM.get(3, paquetesEnviados);
+  EEPROM.get(1, paquetesEnviados);
   Serial.print("Contador recuperado de EEPROM: ");
   Serial.println(paquetesEnviados);
 }
@@ -134,7 +134,7 @@ void loop() {
     #endif
     
     // --- GUARDADO EN EEPROM ---
-    EEPROM.put(5, paquetesEnviados);
+    EEPROM.put(1, paquetesEnviados);
   }
 
   // Comprueba si hay comandos entrantes ("ON" / "OFF")

@@ -14,8 +14,8 @@
 
 // --- SELECCIÓN DEL MÓDULO DE RADIO ---
 //#define USE_XBEE
-//#define USE_LORA
-#define USE_NRF
+#define USE_LORA
+//#define USE_NRF
 
 // ======================= CONFIGURACIÓN Y VARIABLES GLOBALES =======================
 
@@ -25,7 +25,7 @@ String bufferReceptor = ""; // Buffer para acumular datos recibidos
 uint32_t mensajesRecibidos = 0;
 
 #define EEPROM_SIZE 32
-#define EEPROM_ADDR 0
+#define EEPROM_ADDR 1
 
 #if defined(USE_NRF)
   const byte nrfReadAddress[6] = "00001";

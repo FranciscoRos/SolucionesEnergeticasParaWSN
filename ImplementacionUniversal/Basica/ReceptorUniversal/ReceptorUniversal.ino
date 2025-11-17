@@ -14,15 +14,15 @@
 #include <UniversalRadioWSN.h>
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 //#define USE_XBEE 
-//#define USE_LORA 
-#define USE_NRF 
+#define USE_LORA
+//#define USE_NRF 
 
 // ======================= CONFIGURACIÓN Y VARIABLES GLOBALES =======================
 // Pines para XBee 
 #define RXD2 16
 #define TXD2 17
 #define EEPROM_SIZE 32
-#define EEPROM_ADDR 0
+#define EEPROM_ADDR 1
 
 RadioInterface* radio;      
 uint32_t mensajesRecibidos;

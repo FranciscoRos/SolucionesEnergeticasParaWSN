@@ -16,8 +16,8 @@
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 //#define USE_XBEE
-//#define USE_LORA
-#define USE_NRF
+#define USE_LORA
+//#define USE_NRF
 
 
 
@@ -64,12 +64,12 @@ void setup() {
   configEnergia.divisorRAbajo_k  = 0.99f;
   
   // -- Umbrales y períodos  --
-  configEnergia.umbralAlto_V   = 4.00f;  
-  configEnergia.umbralMedio_V  = 2.0f;  
+  configEnergia.umbralAlto_V   = 1.00f;  
+  configEnergia.umbralMedio_V  = 1.0f;  
   configEnergia.corteVoltaje_V = 1.0f;  
   configEnergia.periodoAlto_ms = 2000;  
-  configEnergia.periodoMedio_ms= 4000;  
-  configEnergia.periodoBajo_ms = 10000; 
+  configEnergia.periodoMedio_ms= 2000;  
+  configEnergia.periodoBajo_ms = 2000; 
 
   // Pasa la configuración 
 txManager.begin(configEnergia);

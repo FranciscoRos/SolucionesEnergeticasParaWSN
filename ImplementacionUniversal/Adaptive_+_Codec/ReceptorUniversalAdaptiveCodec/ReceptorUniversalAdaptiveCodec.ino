@@ -14,8 +14,8 @@
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 //#define USE_XBEE 
-//#define USE_LORA 
-#define USE_NRF
+#define USE_LORA 
+//#define USE_NRF
 
 // ======================= CONFIGURACIÓN Y VARIABLES GLOBALES =======================
 // Pines para XBee 
@@ -25,6 +25,9 @@
 RadioInterface* radio;     // Puntero a la interfaz.
 WSNFrame::Parser miParser; // Objeto para decodificar frames.
 uint32_t mensajesRecibidos;
+
+#define EEPROM_SIZE 32
+#define EEPROM_ADDR 1
 
 // --- Configuración específica por radio ---
 #if defined(USE_NRF)
@@ -86,8 +89,8 @@ void setup() {
   Serial.println("Módulo de radio inicializado. Esperando datos binarios...");
   
   // --- LECTURA INICIAL DE LA EEPROM ---
-  EEPROM.begin(sizeof(mensajesRecibidos));
-  EEPROM.get(4, mensajesRecibidos);
+  EEPROM.begin(EEPROM_SIZE);
+  EEPROM.get(EEPROM_ADDR, mensajesRecibidos);
   Serial.print("Contador de mensajes recuperado de EEPROM: ");
   Serial.println(mensajesRecibidos);
 }
@@ -110,7 +113,7 @@ void loop() {
         mensajesRecibidos++;
 
         // --- GUARDADO EN EEPROM ---
-        EEPROM.put(4, mensajesRecibidos);
+        EEPROM.put(EEPROM_ADDR, mensajesRecibidos);
         EEPROM.commit(); 
 
         // --- IMPRESIÓN EN MONITOR SERIAL ---

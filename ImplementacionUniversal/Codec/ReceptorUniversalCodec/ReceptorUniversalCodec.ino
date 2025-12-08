@@ -15,8 +15,8 @@
 
 // ======================= 1. SELECCIÓN DEL MÓDULO DE RADIO =======================
 //#define USE_XBEE 
-#define USE_LORA 
-//#define USE_NRF
+//#define USE_LORA
+#define USE_NRF
 
 // ======================= CONFIGURACIÓN Y VARIABLES GLOBALES =======================
 // Pines para XBee (usando Serial2 en ESP32)
